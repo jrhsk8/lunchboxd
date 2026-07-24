@@ -2,9 +2,9 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
-### 2026-07-23 — Auth email sends from maxout.art via the shared Resend account
+### 2026-07-23 — Auth email sends from no-reply@maxout.art via the shared Resend account, with branded templates
 
-Users reported never receiving magic-link/confirmation emails: the shared Supabase project had no custom SMTP, and Supabase's built-in mailer is capped at 2 emails/hour project-wide with team-member-only delivery. Owner-ruled (picked over a second Resend account or the $20/mo upgrade, both of which would allow a gambdle.net sender): lunchboxd sends through the existing maxout Resend account as `"Lunchboxd" <lunchboxd@maxout.art>`, because the free plan's one domain slot is taken by maxout.art. Cross-brand From address accepted. `rate_limit_email_sent` is 30/hour. Config: docs/meta/deploy.md.
+Users reported never receiving magic-link/confirmation emails. Three stacked causes, each proven by controlled test: no custom SMTP (built-in mailer: 2 emails/hour project-wide, team-member-only delivery), Gmail silently discarding mail from the never-seen address `lunchboxd@maxout.art`, and Gmail silently discarding Supabase's skeletal default templates even from a good sender. Owner-ruled sender choice (picked over a second Resend account or the $20/mo upgrade, both of which would allow a gambdle.net sender): the existing maxout Resend account, `"Lunchboxd" <no-reply@maxout.art>` — the free plan's one domain slot is taken by maxout.art, and only the no-reply address has the delivery history Gmail trusts. Cross-brand From address accepted. Templates are branded Lunchboxd copy, which is project-wide config — if Gambdle ever adds email auth, its users get Lunchboxd-flavored emails and the templates will need to be made neutral. Full config and gotchas: docs/meta/deploy.md.
 
 ### 2026-07-23 — Docs structure mirrors the Maxout project
 

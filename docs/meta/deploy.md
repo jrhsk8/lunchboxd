@@ -25,7 +25,11 @@ One-time hosted config, already done (redo only if the project is rebuilt):
 - `lunchboxd` added to PostgREST's exposed schemas (Dashboard / Management API).
 - Anonymous sign-ins enabled.
 - Site URL and redirect allow-list include `https://gambdle.net/lunchboxd/` (the Site URL itself is Gambdle's — see the email-redirect rule in [../app/auth.md](../app/auth.md)).
-- Custom SMTP via Resend (2026-07-23): host `smtp.resend.com`, sender `"Lunchboxd" <lunchboxd@maxout.art>`, `rate_limit_email_sent` raised from 2 to 30/hour. The Resend account is the shared maxout one (its free-plan single-domain slot holds maxout.art, which is why lunchboxd sends from that domain — owner-accepted trade-off; see decisions.md). Without custom SMTP, Supabase's built-in mailer caps at 2 emails/hour project-wide and barely delivers to non-team addresses — the symptom is users reporting "I never got the email".
+- Custom SMTP via Resend (2026-07-23): host `smtp.resend.com`, port 465, user `resend`, password = the Resend API key, sender `"Lunchboxd" <no-reply@maxout.art>`, `rate_limit_email_sent` 30/hour. The Resend account is the shared maxout one (its free-plan single-domain slot holds maxout.art, which is why lunchboxd sends from that domain — owner-accepted trade-off; see decisions.md). Three deliverability lessons, each proven necessary by controlled tests:
+  - Without custom SMTP, Supabase's built-in mailer caps at 2 emails/hour project-wide and barely delivers to non-team addresses — the symptom is users reporting "I never got the email".
+  - The sender must be `no-reply@maxout.art` (delivery history). Gmail silently discarded everything from the never-before-seen `lunchboxd@maxout.art` — accepted at SMTP (SES "delivered") then binned with no spam-folder trace.
+  - The auth email templates must be the branded ones set in the Dashboard/Management API, not Supabase's defaults. The skeletal default ("Follow this link to login" + bare `<ref>.supabase.co` link) was also silently binned by Gmail even from the good sender; the branded rewrite delivers in seconds.
+  - **Gotcha:** the Management API PATCH for `smtp_*` is all-or-nothing — patching one smtp field alone wipes the rest and drops `rate_limit_email_sent` back to 2. Always send the complete smtp block. Config changes take a couple of minutes to propagate to GoTrue; don't judge a test email sent within ~2 minutes of a config change.
 
 ## Repos and remotes
 
