@@ -42,6 +42,8 @@ Lifted from Maxout's v2 editorial dark skin; tokens live in `src/index.css` `@th
   - **Anything user-named needs `break-words`** (`break-all` inside a flex container, where `overflow-wrap` doesn't shrink min-content): hashtags have no length cap, category names run to 60 chars and handles to 24, any of which can arrive as one unbroken token and sail off the right edge. Header columns that hold such text need `min-w-0`, or the column sizes to its max-content and drags the page with it.
   - **Owner-only hover controls must be visible without hover** (`opacity-100 sm:opacity-0 sm:group-hover:opacity-100`), or the feature is unreachable on touch.
 
-  Within the ranking row's name line the **username gets display priority** (`shrink-0`, never truncates) and the food shortens to fill the rest — so the left column reads as who ranked, owner-ruled. That's the one place text is still deliberately cut on a phone.
+  Within the ranking row's name line the **username gets display priority** (`shrink-0`, never truncates), and the food wraps onto its own line rather than shortening — owner-ruled 2026-07-24, reversing the earlier "shorten food". Nothing on a phone is ellipsised that could wrap instead.
+
+- **Shell width:** `max-w-[1320px]`, not the original 1140. The feed headline ("X ranked FOOD in CATEGORY") is the widest thing on the site and the category sits at the end, so it was what got cut; at 1140 the feed was pinned to 676px at every screen width and a third of activity rows truncated. Changing this width changes how much of a headline survives on desktop — measure the truncated-row count before and after, don't eyeball it.
 
 Player-facing copy has its own rules: [../writing/voice.md](../writing/voice.md).

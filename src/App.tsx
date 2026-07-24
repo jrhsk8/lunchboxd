@@ -87,7 +87,10 @@ function Site() {
   const totalRankings = stats.reduce((n, c) => n + c.ranking_count, 0);
 
   return (
-    <div className="mx-auto max-w-[1140px] p-[clamp(16px,4vw,40px)]">
+    // 1320, not 1140: the feed headline ("X ranked FOOD in CATEGORY") is the
+    // widest thing on the site and the category — the link out — sits at the
+    // end, so it was what got ellipsised. The extra 180px clears it.
+    <div className="mx-auto max-w-[1320px] p-[clamp(16px,4vw,40px)]">
       <header className="mb-8 flex flex-wrap items-center gap-3 rounded-(--radius-card) border border-edge bg-topbar px-4 py-2.5">
         {/* Brand lockup per public/brand/README.md: 24px on-dark mark, 17px/800
             lowercase wordmark with the clay "d", gap 0.4x the icon width. */}
@@ -771,14 +774,18 @@ function RankingRows({
           className="group flex flex-col gap-1 rounded-lg px-2 py-1.5 hover:bg-raised sm:flex-row sm:items-center sm:gap-3"
         >
           <span className="min-w-0 text-sm sm:flex-1">
-            {/* Username gets full display (never truncates); the food shortens
-                to fill the rest, so the left column reads as who ranked. */}
-            <span className="flex min-w-0 items-baseline gap-2">
+            {/* Username gets full display (never truncates). On phones the food
+                wraps onto its own line rather than shortening — three lines is
+                the whole 120-char field at 320px, so the clamp is a guard rail,
+                not a routine cut. Desktop keeps the single truncated line. */}
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:flex-nowrap">
               <span className="shrink-0 font-medium">
                 <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
                 {userId === r.user_id && ' (you)'}
               </span>
-              <span className="min-w-0 truncate text-xs text-faint">{r.food}</span>
+              <span className="line-clamp-3 min-w-0 text-xs break-words text-faint sm:block sm:overflow-hidden sm:text-ellipsis sm:whitespace-nowrap">
+                {r.food}
+              </span>
             </span>
             {r.review && (
               <span className={reviewLine} title={r.review}>
