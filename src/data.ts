@@ -11,19 +11,28 @@ export type CategoryStat = {
   last_ranked_at: string | null;
 };
 
+export type ProfileMeta = { username: string; is_admin?: boolean; tags?: string[] };
+
 export type Ranking = {
   id: string;
   food: string;
   score: number;
   created_at: string;
   user_id: string;
-  profiles: { username: string } | null;
+  profiles: ProfileMeta | null;
   hearted: boolean;
 };
 
 export type Activity = Ranking & { categories: { name: string } | null };
 
-export type ProfileInfo = { id: string; username: string; created_at: string };
+export type ProfileInfo = {
+  id: string;
+  username: string;
+  created_at: string;
+  is_admin: boolean;
+  banned_at: string | null;
+  tags: string[];
+};
 
 export type ProfileRanking = Activity & { category_id: string };
 
@@ -49,7 +58,7 @@ export function useProfile(username: string, version: number) {
     (async () => {
       const { data: prof } = await client
         .from('profiles')
-        .select('id, username, created_at')
+        .select('id, username, created_at, is_admin, banned_at, tags')
         .eq('username', username)
         .maybeSingle();
       if (!alive) return;
@@ -58,7 +67,7 @@ export function useProfile(username: string, version: number) {
       const { data } = await client
         .from('rankings')
         .select(
-          'id, food, score, created_at, user_id, hearted, category_id, profiles(username), categories(name)',
+          'id, food, score, created_at, user_id, hearted, category_id, profiles(username, is_admin, tags), categories(name)',
         )
         .eq('user_id', prof.id)
         .order('created_at', { ascending: false })
@@ -94,7 +103,7 @@ export function useBoard() {
       supabase
         .from('rankings')
         .select(
-          'id, food, score, created_at, user_id, hearted, profiles(username), categories(name)',
+          'id, food, score, created_at, user_id, hearted, profiles(username, is_admin, tags), categories(name)',
         )
         .order('created_at', { ascending: false })
         .limit(30),
@@ -151,7 +160,7 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
     let alive = true;
     supabase
       .from('rankings')
-      .select('id, food, score, created_at, user_id, hearted, profiles(username)')
+      .select('id, food, score, created_at, user_id, hearted, profiles(username, is_admin, tags)')
       .eq('category_id', categoryId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -229,4 +238,22 @@ export async function setHearted(rankingId: string, hearted: boolean): Promise<v
 export async function deleteRanking(id: string): Promise<void> {
   if (!supabase) return;
   await supabase.from('rankings').delete().eq('id', id);
+}
+
+/** Replace your own flair tags (server enforces the allowed roster). */
+export async function setProfileTags(userId: string, tags: string[]): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const { error } = await supabase.from('profiles').update({ tags }).eq('id', userId);
+  return error ? { error: error.message } : {};
+}
+
+/**
+ * Admin-only (enforced server-side): bans the profile, deleting their
+ * rankings and every category they invented (with everyone's rankings in
+ * those categories).
+ */
+export async function banProfile(targetId: string): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const { error } = await supabase.rpc('ban_profile', { target: targetId });
+  return error ? { error: error.message } : {};
 }

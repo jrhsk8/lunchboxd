@@ -8,7 +8,7 @@ The Postgres schema, the RLS matrix, and how the client keeps its views fresh. S
 
 ## Tables
 
-- **`profiles`** — `id` (FK to `auth.users`, cascade), `username` (unique, 2–24 chars), `created_at`. Created by the `handle_new_user` trigger; see [auth.md](auth.md).
+- **`profiles`** — `id` (FK to `auth.users`, cascade), `username` (unique, 2–24 chars), `created_at`, `is_admin`, `banned_at`, `tags` (text[], constrained to the roster `peloton`/`zwift`). Created by the `handle_new_user` trigger; see [auth.md](auth.md). The update grant is **column-scoped to `username, tags`** — that scoping is the entire defense against users setting their own `is_admin` or clearing `banned_at`; never widen it back to whole-row.
 - **`categories`** — `id`, `name` (citext unique, 1–60 chars, so "pizza" and "Pizza" are one category), `created_by` (nullable FK), `created_at`. One global namespace, first ranker invents it.
 - **`rankings`** — `id`, `category_id` (cascade), `user_id` (cascade), `food` (1–120 chars), `score` (numeric(2,1), half-star steps 0.5–5 enforced by check), `hearted` (boolean), `created_at`.
 - **`category_stats`** (view, security_invoker) — one row per category: ranking_count, ranker_count, avg_score, last_ranked_at. The global leaderboard.
@@ -21,11 +21,15 @@ The Postgres schema, the RLS matrix, and how the client keeps its views fresh. S
 
 | Table | select | insert | update | delete |
 |---|---|---|---|---|
-| profiles | everyone | trigger only | own row | — |
-| categories | everyone | own (`created_by = uid`) | — | — |
-| rankings | everyone | own | own, `hearted` column only | own |
+| profiles | everyone | trigger only | own row, `username`+`tags` columns only | — |
+| categories | everyone | own (`created_by = uid`), not banned | — | ban function only |
+| rankings | everyone | own, not banned | own, `hearted` column only | own, or ban function |
 
 Grants are explicit per table (nothing is granted by default in a custom schema); RLS narrows on top.
+
+## Admins and bans
+
+`is_admin` is granted by hand in SQL (there is deliberately no UI or API for it). Admins get a badge everywhere their name shows and a "Ban profile" button on other, non-admin profiles. The ban is the SECURITY DEFINER function **`ban_profile(target)`** (`supabase/migrations/20260724190000_admins_bans_tags.sql`), exposed as an RPC: it checks the caller is an admin, refuses self-bans and admin targets, then deletes the target's rankings, deletes every category they invented (**cascading away other people's rankings in those categories** — owner-ruled: a spammer's junk namespace goes down with them), and stamps `banned_at`. Banned accounts keep their session and profile but fail every insert policy. There is no unban UI; clearing `banned_at` in SQL un-bans but restores nothing.
 
 ## Client data flow (`src/data.ts`)
 

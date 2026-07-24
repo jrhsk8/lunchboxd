@@ -30,5 +30,6 @@ Lifted from Maxout's v2 editorial dark skin; tokens live in `src/index.css` `@th
 - **Accent:** clay (`clay`/`clay-hover`) for kickers, links, and primary buttons; gold for stars and hearts; `good`/`bad` for score tones via `scoreTone` (≥4 good, <2.5 bad).
 - **Type:** single typeface (Schibsted Grotesk). Section headers are uppercase tracking-wide "kickers" (the shared `kicker` class). Numbers are `tabular-nums`.
 - **Interactive idioms:** usernames render through `UserLink` (clay hover) everywhere they appear; owner-only controls (delete, heart toggle) reveal on row hover; empty states are a panel with a bold one-liner plus a playful sub-line.
+- **Username tags:** maxout's player-badge pattern — one hue drives text, dot, border, and fill of a small chip (`Tag` in ui.tsx). Roster: `admin` (gold, granted), `peloton` (brand red, self-picked), `zwift` (murky chartreuse, self-picked — ugly on purpose, owner-ruled). Tags ride along wherever `UserLink` gets a `meta` prop; the flair picker lives on your own profile page.
 
 Player-facing copy has its own rules: [../writing/voice.md](../writing/voice.md).

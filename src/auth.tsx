@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -17,6 +18,7 @@ export function useAuth() {
   useEffect(() => {
     if (!supabase || !session) {
       setUsername(null);
+      setIsAdmin(false);
       return;
     }
     let alive = true;
@@ -28,12 +30,13 @@ export function useAuth() {
       for (let attempt = 0; attempt < 4; attempt++) {
         const { data } = await client
           .from('profiles')
-          .select('username')
+          .select('username, is_admin')
           .eq('id', user.id)
           .maybeSingle();
         if (!alive) return;
         if (data?.username) {
           setUsername(data.username);
+          setIsAdmin(Boolean(data.is_admin));
           return;
         }
         await new Promise((r) => setTimeout(r, 350));
@@ -45,7 +48,7 @@ export function useAuth() {
     };
   }, [session]);
 
-  return { session, username };
+  return { session, username, isAdmin };
 }
 
 const input =

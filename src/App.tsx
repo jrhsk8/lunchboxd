@@ -5,7 +5,17 @@ import { deleteRanking, rankFood, useBoard, useCategoryRankings, type CategorySt
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
-import { Heart, kicker, panel, profileHref, scoreTone, timeAgo, UserLink, useRoute } from './ui';
+import {
+  Heart,
+  kicker,
+  panel,
+  profileHref,
+  scoreTone,
+  Tag,
+  timeAgo,
+  UserLink,
+  useRoute,
+} from './ui';
 
 const NEW_SENTINEL = '__new__';
 
@@ -37,7 +47,7 @@ function SetupNotice() {
 }
 
 function Site() {
-  const { session, username } = useAuth();
+  const { session, username, isAdmin } = useAuth();
   const { stats, activity, loaded, version, refresh } = useBoard();
   const route = useRoute();
   const [tab, setTab] = useState<'categories' | 'activity'>('categories');
@@ -93,9 +103,10 @@ function Site() {
                 <a
                   href={profileHref(username)}
                   title="Your profile"
-                  className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold transition-colors hover:border-edge-hover hover:text-clay"
+                  className="flex items-center gap-1.5 rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold transition-colors hover:border-edge-hover hover:text-clay"
                 >
                   {username}
+                  {isAdmin && <Tag kind="admin" size={9} />}
                 </a>
               ) : (
                 <span className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold">
@@ -130,6 +141,7 @@ function Site() {
           username={route.username}
           version={version}
           userId={session?.user.id ?? null}
+          viewerIsAdmin={isAdmin}
           onChanged={refresh}
         />
       ) : (
@@ -504,7 +516,7 @@ function CategoryDetail({
             <span className="min-w-0 flex-1 truncate text-sm">
               {r.food}
               <span className="ml-2 text-xs text-faint">
-                <UserLink username={r.profiles?.username ?? null} />
+                <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
                 {userId === r.user_id && ' (you)'}
               </span>
             </span>
@@ -567,7 +579,11 @@ function ActivityFeed({
             className="flex items-center gap-3 border-b border-edge py-3 last:border-b-0"
           >
             <span className="min-w-0 flex-1 text-sm">
-              <UserLink username={a.profiles?.username ?? null} className="font-bold" />{' '}
+              <UserLink
+                username={a.profiles?.username ?? null}
+                className="font-bold"
+                meta={a.profiles}
+              />{' '}
               <span className="text-dim">ranked</span> {a.food} <span className="text-dim">in</span>{' '}
               <span className="font-semibold text-clay">{a.categories?.name ?? '?'}</span>
             </span>

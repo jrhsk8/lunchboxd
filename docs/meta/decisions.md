@@ -6,6 +6,14 @@ Lightweight log of product, tooling, and repo rulings. Newest first. Grep for th
 
 Users reported never receiving magic-link/confirmation emails. Three stacked causes, each proven by controlled test: no custom SMTP (built-in mailer: 2 emails/hour project-wide, team-member-only delivery), Gmail silently discarding mail from the never-seen address `lunchboxd@maxout.art`, and Gmail silently discarding Supabase's skeletal default templates even from a good sender. Owner-ruled sender choice (picked over a second Resend account or the $20/mo upgrade, both of which would allow a gambdle.net sender): the existing maxout Resend account, `"Lunchboxd" <no-reply@maxout.art>` — the free plan's one domain slot is taken by maxout.art, and only the no-reply address has the delivery history Gmail trusts. Cross-brand From address accepted. Templates are branded Lunchboxd copy, which is project-wide config — if Gambdle ever adds email auth, its users get Lunchboxd-flavored emails and the templates will need to be made neutral. Full config and gotchas: docs/meta/deploy.md.
 
+### 2026-07-23 — Admin role with the ban hammer; bans take the whole namespace down
+
+Owner-asked: admins (hand-granted in SQL, no UI) get a badge and can ban from a profile page. Ban semantics owner-specified: "that removes all their categories and reviews" — so `ban_profile` deletes the target's rankings AND their invented categories, cascading away everyone else's rankings inside those categories. Deliberate collateral: a spammer's junk namespace disappears whole. No unban button. First admin: jrhsk8.
+
+### 2026-07-23 — Self-service profile tags: Peloton (brand red) and Zwift (ugly on purpose)
+
+Owner-asked, for the Peloton-themed Discord crowd: profiles get Discord-flair-style self-picked tags from a fixed roster. Peloton wears the brand red; Zwift wears a murky chartreuse because the owner ruled "make the zwift one an ugly color" — do not tasteful-ify it. Profile editing means exactly this tag picking (no handle rename UI). Roster changes = migration (check constraint) + `SELF_TAGS`/`TAG_STYLES` in ui.tsx.
+
 ### 2026-07-23 — Docs structure mirrors the Maxout project
 
 Owner-asked: the repo gets a `docs/` tree in the Maxout style — routed topic docs under `app/`, `meta/`, `writing/`, this decisions log, and a root `CLAUDE.md` router with a read-when table. Scaled to this project's size; new categories only when a doc genuinely doesn't fit.

@@ -23,6 +23,12 @@
   --color-bad: #ec8468;
   --color-gold: #e0b25f;
 
+  /* Profile-tag hues (one hue drives a whole chip, maxout-style). Peloton
+     gets the brand red; Zwift's murky chartreuse is ugly on purpose
+     (owner-ruled: "make the zwift one an ugly color"). */
+  --color-peloton: #e8475c;
+  --color-zwift: #a8a416;
+
   --font-sans: 'Schibsted Grotesk', system-ui, -apple-system, sans-serif;
 
   --radius-card: 10px;

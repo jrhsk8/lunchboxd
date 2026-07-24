@@ -49,22 +49,66 @@ export function profileHref(username: string) {
   return `#/u/${encodeURIComponent(username)}`;
 }
 
+/**
+ * Username tags, maxout-style: one hue drives text, dot, border, and fill of
+ * a small chip. `admin` is granted (never self-picked); the rest are
+ * self-service flair from the fixed roster in SELF_TAGS.
+ */
+export type TagKind = 'admin' | 'peloton' | 'zwift';
+
+export const SELF_TAGS: readonly TagKind[] = ['peloton', 'zwift'];
+
+const TAG_STYLES: Record<TagKind, { label: string; tone: string }> = {
+  admin: { label: 'Admin', tone: 'text-gold' },
+  peloton: { label: 'Peloton', tone: 'text-peloton' },
+  zwift: { label: 'Zwift', tone: 'text-zwift' },
+};
+
+export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
+  const { label, tone } = TAG_STYLES[kind];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border border-current/35 bg-current/10 px-1.5 py-px align-middle font-semibold whitespace-nowrap ${tone}`}
+      style={{ fontSize: size }}
+    >
+      <span className="h-1 w-1 rounded-[2px] bg-current" aria-hidden />
+      {label}
+    </span>
+  );
+}
+
+/** The tags a profile wears, in display order: granted first, then flair. */
+export function profileTags(p: { is_admin?: boolean; tags?: string[] } | null): TagKind[] {
+  if (!p) return [];
+  const flair = (p.tags ?? []).filter((t): t is TagKind => t in TAG_STYLES);
+  return p.is_admin ? ['admin', ...flair] : flair;
+}
+
 export function UserLink({
   username,
   className = '',
+  meta = null,
 }: {
   username: string | null;
   className?: string;
+  meta?: { is_admin?: boolean; tags?: string[] } | null;
 }) {
   if (!username) return <span className={className}>someone</span>;
   return (
-    <a
-      href={profileHref(username)}
-      className={`${className} hover:text-clay hover:underline`}
-      title={`${username}'s profile`}
-    >
-      {username}
-    </a>
+    <>
+      <a
+        href={profileHref(username)}
+        className={`${className} hover:text-clay hover:underline`}
+        title={`${username}'s profile`}
+      >
+        {username}
+      </a>
+      {profileTags(meta).map((t) => (
+        <span key={t} className="ml-1.5">
+          <Tag kind={t} size={9} />
+        </span>
+      ))}
+    </>
   );
 }
 
