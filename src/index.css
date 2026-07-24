@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+/*
+ * Lunchboxd theme — lifted from Maxout's v2 editorial dark skin:
+ * warm near-black ground, clay accent, single typeface (Schibsted Grotesk),
+ * soft-radius panels with a hard drop shadow, uppercase kickers.
+ */
+@theme {
+  --color-bg: #1a1815;
+  --color-topbar: #1c1a16;
+  --color-panel: #221f1b;
+  --color-edge: #34302a;
+  --color-edge-hover: #4a443c;
+  --color-raised: #2a2620;
+  --color-raised-hover: #322d27;
+  --color-field: #13110e;
+  --color-ink: #efe9e0;
+  --color-dim: #a8a096;
+  --color-faint: #958e83;
+  --color-clay: #d98b6a;
+  --color-clay-hover: #e49b7c;
+  --color-good: #6cc28d;
+  --color-bad: #ec8468;
+  --color-gold: #e0b25f;
+
+  --font-sans: 'Schibsted Grotesk', system-ui, -apple-system, sans-serif;
+
+  --radius-card: 10px;
+  --shadow-hard: 0 14px 40px rgb(0 0 0 / 0.4);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}

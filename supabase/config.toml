@@ -1,0 +1,17 @@
+project_id = "lunchboxd"
+
+[api]
+port = 54321
+schemas = ["public", "lunchboxd"]
+
+[db]
+port = 54322
+
+[studio]
+enabled = false
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:4173"]
+# Guest accounts: the "start ranking" path needs no email.
+enable_anonymous_sign_ins = true
