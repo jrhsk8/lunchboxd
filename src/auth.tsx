@@ -203,11 +203,13 @@ export function SignInCard() {
 
       <div className="flex items-center gap-3 text-[10px] tracking-wider text-faint uppercase">
         <span className="h-px flex-1 bg-edge" />
-        or keep your account
+        already have an account?
         <span className="h-px flex-1 bg-edge" />
       </div>
 
-      <div className="flex gap-2">
+      {/* Stacks on phones so the button keeps its full label instead of
+          squeezing the email field down to a few characters. */}
+      <div className="flex flex-col gap-2 sm:flex-row">
         <input
           className={input}
           type="email"
@@ -220,13 +222,17 @@ export function SignInCard() {
         />
         <button
           type="button"
-          className="shrink-0 cursor-pointer rounded-lg border border-edge bg-raised px-3 py-2 text-sm font-semibold text-ink transition-colors hover:border-edge-hover hover:bg-raised-hover disabled:cursor-default disabled:opacity-40"
+          className="w-full cursor-pointer rounded-lg border border-edge bg-raised px-3 py-2 text-sm font-semibold whitespace-nowrap text-ink transition-colors hover:border-edge-hover hover:bg-raised-hover disabled:cursor-default disabled:opacity-40 sm:w-auto sm:shrink-0"
           disabled={busy || !email.includes('@')}
           onClick={sendMagicLink}
         >
-          Email link
+          Send sign-in link
         </button>
       </div>
+      <p className="m-0 -mt-2 text-[11px] leading-relaxed text-faint">
+        No password — we email you a link. An address we haven&rsquo;t seen before starts a new
+        account.
+      </p>
 
       {status && (
         <p className="m-0 rounded-lg border-l-4 border-clay bg-raised px-3 py-2 text-xs text-dim">

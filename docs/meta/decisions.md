@@ -2,11 +2,15 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-24 — The sign-in card names the returning-user path; auth buttons say what they do
+
+Owner-asked for "a sign in option if you already have an account". The magic-link field already existed but sat under the divider "or keep your account", which reads as _persistence for a newcomer_, not _sign in for a returning user_ — the affordance was there and invisible. Divider is now "already have an account?" and the button "Send sign-in link" (was "Email link"). Owner-ruled on the unknown-email case: **keep creating an account** (an address with no account still gets a link and lands on a generated `eater-*` handle to rename) and **"the buttons should be very clear what they do and function like any other site"** — which overrides voice.md's "buttons are short verbs" where the short verb would be ambiguous about the mechanic. A helper line states the mechanic outright: no password, unseen address starts a new account. Guest-first ordering is unchanged; "Start ranking" is still the primary action.
+
 ### 2026-07-24 — Text wraps rather than ellipsising; food names no longer shorten; shell widened to 1320px
 
 Owner-ruled after a mobile audit: **if text can wrap instead of being cut, wrap it.** This reverses the same-day "shorten food" half of the ranking-row ruling below — food now wraps onto its own line on phones and only clamps at three lines (the whole 120-char field at 320px, so the clamp is a guard rail, not a routine cut). The username keeps full display priority; that part of the earlier ruling stands. Feed headlines wrap on phones too, because the ellipsis always ate the category — the link out of the feed — and reviews clamp to three lines rather than one, since the `title` tooltip holding the full text never appears on touch.
 
-Same ruling on desktop: the shell went `max-w-[1140px]` → `max-w-[1320px]` so the activity/categories card fits more. The feed was pinned at 676px at *every* screen width, cutting a third of activity rows (worst case 134px); at 1320 it's 816px at a 1280 viewport and 856px beyond, and nothing in the live data truncates. Mobile is untouched by this — the container is viewport-limited well below the cap. Idioms and the `sm:`-gating rule: docs/app/app-shell.md § Mobile.
+Same ruling on desktop: the shell went `max-w-[1140px]` → `max-w-[1320px]` so the activity/categories card fits more. The feed was pinned at 676px at _every_ screen width, cutting a third of activity rows (worst case 134px); at 1320 it's 816px at a 1280 viewport and 856px beyond, and nothing in the live data truncates. Mobile is untouched by this — the container is viewport-limited well below the cap. Idioms and the `sm:`-gating rule: docs/app/app-shell.md § Mobile.
 
 ### 2026-07-24 — Migrated to its own apex domain, lunchboxd.live, on Cloudflare Pages
 

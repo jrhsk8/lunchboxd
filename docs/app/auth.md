@@ -9,6 +9,8 @@ Both are real Supabase Auth sessions with a genuine `auth.uid()`:
 - **Guest** — Supabase anonymous sign-in (`is_anonymous: true`), created from the "Start ranking" path with a chosen handle in the signup metadata. This is the primary flow; the sign-in card is guest-first by design.
 - **Email account** — magic link (`signInWithOtp`), or a guest upgraded in place via "Keep account" (`updateUser({ email })` attaches an email to the same UID, so the handle and rankings carry over).
 
+The card's second section is the returning-user door: divider "already have an account?", button "Send sign-in link". It deliberately still creates an account for an address it hasn't seen (`shouldCreateUser` left at its default), so the same field serves sign-in and email-first signup; the helper line says so rather than letting it surprise anyone. Ruling: docs/meta/decisions.md 2026-07-24.
+
 ## Handles
 
 - A profile row is created for every new auth user by the `handle_new_user` trigger (SECURITY DEFINER, `supabase/migrations/20260723120000_init.sql` + the collision rework in `20260724150000_username_collision.sql`). The username comes from signup metadata, falling back to `eater-<6 hex chars of uid>`.
