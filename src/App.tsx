@@ -1,41 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { KeepAccount, SignInCard, useAuth } from './auth';
-import {
-  deleteRanking,
-  rankFood,
-  setHearted,
-  useBoard,
-  useCategoryRankings,
-  type CategoryStat,
-  type Ranking,
-} from './data';
+import { deleteRanking, rankFood, useBoard, useCategoryRankings, type CategoryStat } from './data';
+import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
+import { Heart, kicker, panel, profileHref, scoreTone, timeAgo, UserLink, useRoute } from './ui';
 
 const NEW_SENTINEL = '__new__';
 
-const panel = 'rounded-(--radius-card) border border-edge bg-panel shadow-(--shadow-hard)';
 const btnPrimary =
   'cursor-pointer rounded-lg border border-transparent bg-clay px-4 py-2.5 text-sm font-bold text-field transition-colors hover:bg-clay-hover disabled:cursor-default disabled:opacity-40';
 const input =
   'rounded-lg border border-edge bg-field px-3 py-2.5 text-sm text-ink placeholder:text-faint focus:border-clay focus:outline-none';
-const kicker = 'text-[11px] font-semibold tracking-[0.16em] uppercase text-clay';
 const label = 'flex flex-col gap-1.5 text-[11px] font-semibold tracking-wider text-dim uppercase';
-
-function scoreTone(avg: number) {
-  if (avg >= 4) return 'text-good';
-  if (avg < 2.5) return 'text-bad';
-  return 'text-ink';
-}
-
-function timeAgo(iso: string) {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
 
 export default function App() {
   if (!supabase) return <SetupNotice />;
@@ -61,9 +39,15 @@ function SetupNotice() {
 function Site() {
   const { session, username } = useAuth();
   const { stats, activity, loaded, version, refresh } = useBoard();
+  const route = useRoute();
   const [tab, setTab] = useState<'categories' | 'activity'>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
+
+  const routeKey = route.page === 'profile' ? `u/${route.username}` : 'home';
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [routeKey]);
 
   const totalRankings = stats.reduce((n, c) => n + c.ranking_count, 0);
 
@@ -82,9 +66,19 @@ function Site() {
           </span>
           {session && (
             <>
-              <span className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold">
-                {username ?? '…'}
-              </span>
+              {username ? (
+                <a
+                  href={profileHref(username)}
+                  title="Your profile"
+                  className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold transition-colors hover:border-edge-hover hover:text-clay"
+                >
+                  {username}
+                </a>
+              ) : (
+                <span className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold">
+                  …
+                </span>
+              )}
               {session.user.is_anonymous && <KeepAccount />}
               <button
                 type="button"
@@ -108,61 +102,74 @@ function Site() {
         </span>
       </header>
 
-      <div className="mb-6">
-        <p className={`${kicker} mb-1.5`}>Food, ranked, together</p>
-        <h1 className="m-0 text-[28px] font-bold">Every bite goes on the record</h1>
-        <p className="mt-2 mb-0 max-w-xl text-sm leading-relaxed text-dim">
-          Categories belong to everyone. Invent one, score what you eat out of five, and the
-          global average shifts with every ranking anyone logs.
-        </p>
-      </div>
-
-      <div className="grid items-start gap-6 md:grid-cols-[360px_minmax(0,1fr)]">
-        <section className={`${panel} p-5`} aria-label={session ? 'rank a food' : 'sign in'}>
-          <p className={`${kicker} mb-4`}>{session ? 'Rank a food' : 'Join the table'}</p>
-          {session ? (
-            <RankForm userId={session.user.id} stats={stats} onLogged={refresh} />
-          ) : (
-            <SignInCard />
-          )}
-        </section>
-
-        <section className="flex min-w-0 flex-col gap-3">
-          <div className="flex gap-1 self-start rounded-(--radius-card) border-2 border-edge bg-raised p-1">
-            {(['categories', 'activity'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={`cursor-pointer rounded-[7px] border-0 px-4 py-2 text-sm font-semibold capitalize transition-colors ${
-                  tab === t ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:bg-edge hover:text-ink'
-                }`}
-                onClick={() => setTab(t)}
-              >
-                {t}
-              </button>
-            ))}
+      {route.page === 'profile' ? (
+        <ProfilePage
+          username={route.username}
+          version={version}
+          userId={session?.user.id ?? null}
+          onChanged={refresh}
+        />
+      ) : (
+        <>
+          <div className="mb-6">
+            <p className={`${kicker} mb-1.5`}>Food, ranked, together</p>
+            <h1 className="m-0 text-[28px] font-bold">Every bite goes on the record</h1>
+            <p className="mt-2 mb-0 max-w-xl text-sm leading-relaxed text-dim">
+              Categories belong to everyone. Invent one, score what you eat out of five, and the
+              global average shifts with every ranking anyone logs.
+            </p>
           </div>
 
-          {tab === 'categories' ? (
-            <CategoryBoard
-              stats={stats}
-              loaded={loaded}
-              openId={openId}
-              setOpenId={setOpenId}
-              version={version}
-              userId={session?.user.id ?? null}
-              onChanged={refresh}
-            />
-          ) : (
-            <ActivityFeed
-              activity={activity}
-              loaded={loaded}
-              userId={session?.user.id ?? null}
-              onChanged={refresh}
-            />
-          )}
-        </section>
-      </div>
+          <div className="grid items-start gap-6 md:grid-cols-[360px_minmax(0,1fr)]">
+            <section className={`${panel} p-5`} aria-label={session ? 'rank a food' : 'sign in'}>
+              <p className={`${kicker} mb-4`}>{session ? 'Rank a food' : 'Join the table'}</p>
+              {session ? (
+                <RankForm userId={session.user.id} stats={stats} onLogged={refresh} />
+              ) : (
+                <SignInCard />
+              )}
+            </section>
+
+            <section className="flex min-w-0 flex-col gap-3">
+              <div className="flex gap-1 self-start rounded-(--radius-card) border-2 border-edge bg-raised p-1">
+                {(['categories', 'activity'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`cursor-pointer rounded-[7px] border-0 px-4 py-2 text-sm font-semibold capitalize transition-colors ${
+                      tab === t
+                        ? 'bg-clay/15 text-ink'
+                        : 'bg-transparent text-dim hover:bg-edge hover:text-ink'
+                    }`}
+                    onClick={() => setTab(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              {tab === 'categories' ? (
+                <CategoryBoard
+                  stats={stats}
+                  loaded={loaded}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                  version={version}
+                  userId={session?.user.id ?? null}
+                  onChanged={refresh}
+                />
+              ) : (
+                <ActivityFeed
+                  activity={activity}
+                  loaded={loaded}
+                  userId={session?.user.id ?? null}
+                  onChanged={refresh}
+                />
+              )}
+            </section>
+          </div>
+        </>
+      )}
 
       <footer className="mt-10 flex items-center justify-center gap-4 pb-2">
         <span className="text-xs text-faint">
@@ -208,8 +215,8 @@ function Terms({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-3 text-sm leading-relaxed text-dim">
           <p className="m-0">
             <span className="font-bold text-ink">We do not collect your data.</span> No analytics,
-            no tracking, no ads, no cookies beyond the session that keeps you signed in, and
-            nothing is ever sold or shared with anyone.
+            no tracking, no ads, no cookies beyond the session that keeps you signed in, and nothing
+            is ever sold or shared with anyone.
           </p>
           <p className="m-0">
             The only things stored are what you post to make the site work: your handle, the
@@ -354,49 +361,6 @@ function RankForm({
   );
 }
 
-/**
- * The Letterboxd heart: a mark the AUTHOR puts on their own ranking ("loved
- * it", independent of the score). Everyone sees it; only the owner can flip
- * it. Non-owners get a plain glyph (gold when hearted, nothing otherwise).
- */
-function Heart({
-  ranking,
-  userId,
-  onChanged,
-}: {
-  ranking: Ranking;
-  userId: string | null;
-  onChanged: () => void;
-}) {
-  const own = userId === ranking.user_id;
-  if (!own) {
-    return ranking.hearted ? (
-      <span className="px-1 text-sm text-gold" title="They loved it" aria-label="loved it">
-        ♥
-      </span>
-    ) : (
-      <span className="w-[26px]" aria-hidden />
-    );
-  }
-  return (
-    <button
-      type="button"
-      aria-label={ranking.hearted ? 'unmark loved' : 'mark as loved'}
-      aria-pressed={ranking.hearted}
-      title={ranking.hearted ? 'You loved it — click to unmark' : 'Loved it?'}
-      className={`cursor-pointer rounded border-0 bg-transparent px-1 text-sm transition-transform hover:scale-115 ${
-        ranking.hearted ? 'text-gold' : 'text-faint hover:text-gold'
-      }`}
-      onClick={async () => {
-        await setHearted(ranking.id, !ranking.hearted);
-        onChanged();
-      }}
-    >
-      {ranking.hearted ? '♥' : '♡'}
-    </button>
-  );
-}
-
 function CategoryBoard({
   stats,
   loaded,
@@ -466,7 +430,12 @@ function CategoryBoard({
               </span>
             </button>
             {open && (
-              <CategoryDetail categoryId={c.id} version={version} userId={userId} onChanged={onChanged} />
+              <CategoryDetail
+                categoryId={c.id}
+                version={version}
+                userId={userId}
+                onChanged={onChanged}
+              />
             )}
           </article>
         );
@@ -512,7 +481,7 @@ function CategoryDetail({
             <span className="min-w-0 flex-1 truncate text-sm">
               {r.food}
               <span className="ml-2 text-xs text-faint">
-                {r.profiles?.username ?? 'someone'}
+                <UserLink username={r.profiles?.username ?? null} />
                 {userId === r.user_id && ' (you)'}
               </span>
             </span>
@@ -575,9 +544,8 @@ function ActivityFeed({
             className="flex items-center gap-3 border-b border-edge py-3 last:border-b-0"
           >
             <span className="min-w-0 flex-1 text-sm">
-              <span className="font-bold">{a.profiles?.username ?? 'someone'}</span>{' '}
-              <span className="text-dim">ranked</span> {a.food}{' '}
-              <span className="text-dim">in</span>{' '}
+              <UserLink username={a.profiles?.username ?? null} className="font-bold" />{' '}
+              <span className="text-dim">ranked</span> {a.food} <span className="text-dim">in</span>{' '}
               <span className="font-semibold text-clay">{a.categories?.name ?? '?'}</span>
             </span>
             <span className="text-xs text-faint">{timeAgo(a.created_at)}</span>

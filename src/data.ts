@@ -23,6 +23,56 @@ export type Ranking = {
 
 export type Activity = Ranking & { categories: { name: string } | null };
 
+export type ProfileInfo = { id: string; username: string; created_at: string };
+
+export type ProfileRanking = Activity & { category_id: string };
+
+/**
+ * One person's public page: their profile row plus full ranking history.
+ * `profile` is undefined while loading, null when no such handle exists.
+ */
+export function useProfile(username: string, version: number) {
+  const [profile, setProfile] = useState<ProfileInfo | null | undefined>(undefined);
+  const [rankings, setRankings] = useState<ProfileRanking[] | null>(null);
+
+  // Reset to loading only on a handle change; version bumps (realtime, the
+  // slow poll) refetch in place so the page never flashes.
+  useEffect(() => {
+    setProfile(undefined);
+    setRankings(null);
+  }, [username]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    let alive = true;
+    (async () => {
+      const { data: prof } = await client
+        .from('profiles')
+        .select('id, username, created_at')
+        .eq('username', username)
+        .maybeSingle();
+      if (!alive) return;
+      setProfile((prof as ProfileInfo | null) ?? null);
+      if (!prof) return;
+      const { data } = await client
+        .from('rankings')
+        .select(
+          'id, food, score, created_at, user_id, hearted, category_id, profiles(username), categories(name)',
+        )
+        .eq('user_id', prof.id)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (alive) setRankings((data ?? []) as unknown as ProfileRanking[]);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [username, version]);
+
+  return { profile, rankings };
+}
+
 /**
  * The shared board: category leaderboard + site-wide activity feed, refetched
  * together. A realtime subscription on rankings bumps `version` so every

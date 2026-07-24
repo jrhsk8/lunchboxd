@@ -1,0 +1,137 @@
+import { deleteRanking, useProfile } from './data';
+import { Stars } from './Stars';
+import { Heart, kicker, panel, scoreTone, timeAgo } from './ui';
+
+function Stat({
+  label,
+  value,
+  tone = 'text-ink',
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className={`${panel} px-4 py-3`}>
+      <p className={`m-0 text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
+      <p className="m-0 mt-0.5 text-[11px] font-semibold tracking-wider text-dim uppercase">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+/** One eater's public record: who they are, their numbers, everything they've ranked. */
+export function ProfilePage({
+  username,
+  version,
+  userId,
+  onChanged,
+}: {
+  username: string;
+  version: number;
+  userId: string | null;
+  onChanged: () => void;
+}) {
+  const { profile, rankings } = useProfile(username, version);
+
+  if (profile === undefined)
+    return <p className="m-0 py-16 text-center text-sm text-faint">Loading…</p>;
+
+  if (profile === null) {
+    return (
+      <div className={`${panel} mx-auto max-w-lg px-6 py-12 text-center`}>
+        <p className="m-0 text-[15px] font-semibold">No one by that handle</p>
+        <p className="mt-2 mb-4 text-sm text-dim">"{username}" hasn't pulled up a chair here.</p>
+        <a href="#/" className="text-sm font-semibold text-clay hover:text-clay-hover">
+          ← Back to the board
+        </a>
+      </div>
+    );
+  }
+
+  const list = rankings ?? [];
+  const own = userId === profile.id;
+  const avg = list.length ? list.reduce((s, r) => s + Number(r.score), 0) / list.length : null;
+  const categoryCount = new Set(list.map((r) => r.category_id)).size;
+  const lovedCount = list.filter((r) => r.hearted).length;
+  const since = new Date(profile.created_at).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
+          ← Back to the board
+        </a>
+        <p className={`${kicker} mt-4 mb-1.5`}>{own ? 'Your profile' : 'Profile'}</p>
+        <h1 className="m-0 text-[28px] font-bold">{profile.username}</h1>
+        <p className="mt-1 mb-0 text-sm text-dim">Eating since {since}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label={list.length === 1 ? 'Ranking' : 'Rankings'} value={String(list.length)} />
+        <Stat
+          label={categoryCount === 1 ? 'Category' : 'Categories'}
+          value={String(categoryCount)}
+        />
+        <Stat
+          label="Average"
+          value={avg === null ? '—' : avg.toFixed(2)}
+          tone={avg === null ? 'text-faint' : scoreTone(avg)}
+        />
+        <Stat label="Loved" value={lovedCount ? `♥ ${lovedCount}` : '—'} tone="text-gold" />
+      </div>
+
+      {rankings === null ? (
+        <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
+      ) : list.length === 0 ? (
+        <div className={`${panel} px-6 py-12 text-center`}>
+          <p className="m-0 text-[15px] font-semibold">Nothing ranked yet</p>
+          <p className="mt-2 mb-0 text-sm text-dim">
+            {own ? 'Your first bite is waiting.' : 'A clean plate so far.'}
+          </p>
+        </div>
+      ) : (
+        <div className={`${panel} px-5 py-3`}>
+          <ul className="m-0 flex list-none flex-col p-0">
+            {list.map((r) => (
+              <li
+                key={r.id}
+                className="group flex items-center gap-3 border-b border-edge py-3 last:border-b-0"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {r.food} <span className="text-dim">in</span>{' '}
+                  <span className="font-semibold text-clay">{r.categories?.name ?? '?'}</span>
+                </span>
+                <span className="text-xs text-faint">{timeAgo(r.created_at)}</span>
+                <Stars value={Number(r.score)} size={13} />
+                <span className="w-8 text-right text-sm font-bold tabular-nums">
+                  {Number(r.score).toFixed(1)}
+                </span>
+                <Heart ranking={r} userId={userId} onChanged={onChanged} />
+                {own ? (
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded border-0 bg-transparent px-1 text-sm text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-bad"
+                    aria-label={`delete ${r.food}`}
+                    onClick={async () => {
+                      await deleteRanking(r.id);
+                      onChanged();
+                    }}
+                  >
+                    ✕
+                  </button>
+                ) : (
+                  <span className="w-[22px]" aria-hidden />
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
