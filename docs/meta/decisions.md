@@ -2,6 +2,10 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-23 — Auth email sends from maxout.art via the shared Resend account
+
+Users reported never receiving magic-link/confirmation emails: the shared Supabase project had no custom SMTP, and Supabase's built-in mailer is capped at 2 emails/hour project-wide with team-member-only delivery. Owner-ruled (picked over a second Resend account or the $20/mo upgrade, both of which would allow a gambdle.net sender): lunchboxd sends through the existing maxout Resend account as `"Lunchboxd" <lunchboxd@maxout.art>`, because the free plan's one domain slot is taken by maxout.art. Cross-brand From address accepted. `rate_limit_email_sent` is 30/hour. Config: docs/meta/deploy.md.
+
 ### 2026-07-23 — Docs structure mirrors the Maxout project
 
 Owner-asked: the repo gets a `docs/` tree in the Maxout style — routed topic docs under `app/`, `meta/`, `writing/`, this decisions log, and a root `CLAUDE.md` router with a read-when table. Scaled to this project's size; new categories only when a doc genuinely doesn't fit.

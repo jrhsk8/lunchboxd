@@ -25,6 +25,7 @@ One-time hosted config, already done (redo only if the project is rebuilt):
 - `lunchboxd` added to PostgREST's exposed schemas (Dashboard / Management API).
 - Anonymous sign-ins enabled.
 - Site URL and redirect allow-list include `https://gambdle.net/lunchboxd/` (the Site URL itself is Gambdle's — see the email-redirect rule in [../app/auth.md](../app/auth.md)).
+- Custom SMTP via Resend (2026-07-23): host `smtp.resend.com`, sender `"Lunchboxd" <lunchboxd@maxout.art>`, `rate_limit_email_sent` raised from 2 to 30/hour. The Resend account is the shared maxout one (its free-plan single-domain slot holds maxout.art, which is why lunchboxd sends from that domain — owner-accepted trade-off; see decisions.md). Without custom SMTP, Supabase's built-in mailer caps at 2 emails/hour project-wide and barely delivers to non-team addresses — the symptom is users reporting "I never got the email".
 
 ## Repos and remotes
 
