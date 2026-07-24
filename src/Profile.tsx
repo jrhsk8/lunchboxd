@@ -328,9 +328,19 @@ export function ProfilePage({
                     key={r.id}
                     className="group flex items-center gap-3 border-b border-edge py-3 last:border-b-0"
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {r.food} <span className="text-dim">in</span>{' '}
-                      <span className="font-semibold text-clay">{r.categories?.name ?? '?'}</span>
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="block truncate">
+                        {r.food} <span className="text-dim">in</span>{' '}
+                        <span className="font-semibold text-clay">{r.categories?.name ?? '?'}</span>
+                      </span>
+                      {r.review && (
+                        <span
+                          className="mt-0.5 block truncate text-xs text-dim italic"
+                          title={r.review}
+                        >
+                          "{r.review}"
+                        </span>
+                      )}
                     </span>
                     <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
                       {timeAgo(r.created_at)}

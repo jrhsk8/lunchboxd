@@ -13,7 +13,7 @@ Hash routing is a deliberate choice, not a shortcut: the site is a static folder
 
 ## Component map
 
-- `App.tsx` — `Site` (shell + route dispatch), `RankForm`, `CategoryBoard`/`CategoryDetail`, `ActivityFeed`, `Terms`.
+- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (score + optional review text), `CategoryBoard`/`CategoryDetail` (admins get `CategoryAdminTools`: rename / merge-into), `ActivityFeed`, `Terms`. Feed rows show a ranking's review as a one-line italic quote under the headline (full text in the `title` tooltip).
 - `Profile.tsx` — `ProfilePage` (stats + history; own-view gets edit controls).
 - `auth.tsx` — `useAuth`, `SignInCard` (guest-first), `KeepAccount`.
 - `Stars.tsx` — `Stars` (fractional display), `StarInput` (half-star hit zones).

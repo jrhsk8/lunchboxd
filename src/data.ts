@@ -21,6 +21,7 @@ export type Ranking = {
   user_id: string;
   profiles: ProfileMeta | null;
   hearted: boolean;
+  review: string | null;
 };
 
 export type Activity = Ranking & { categories: { name: string } | null };
@@ -67,7 +68,7 @@ export function useProfile(username: string, version: number) {
       const { data } = await client
         .from('rankings')
         .select(
-          'id, food, score, created_at, user_id, hearted, category_id, profiles(username, is_admin, tags), categories(name)',
+          'id, food, score, created_at, user_id, hearted, review, category_id, profiles(username, is_admin, tags), categories(name)',
         )
         .eq('user_id', prof.id)
         .order('created_at', { ascending: false })
@@ -103,7 +104,7 @@ export function useBoard() {
       supabase
         .from('rankings')
         .select(
-          'id, food, score, created_at, user_id, hearted, profiles(username, is_admin, tags), categories(name)',
+          'id, food, score, created_at, user_id, hearted, review, profiles(username, is_admin, tags), categories(name)',
         )
         .order('created_at', { ascending: false })
         .limit(30),
@@ -160,7 +161,9 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
     let alive = true;
     supabase
       .from('rankings')
-      .select('id, food, score, created_at, user_id, hearted, profiles(username, is_admin, tags)')
+      .select(
+        'id, food, score, created_at, user_id, hearted, review, profiles(username, is_admin, tags)',
+      )
       .eq('category_id', categoryId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -183,6 +186,7 @@ export async function rankFood(opts: {
   food: string;
   score: number;
   hearted: boolean;
+  review?: string;
 }): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
 
@@ -225,7 +229,30 @@ export async function rankFood(opts: {
     food: opts.food.trim(),
     score: opts.score,
     hearted: opts.hearted,
+    review: opts.review?.trim() || null,
   });
+  return error ? { error: error.message } : {};
+}
+
+/** Admin-only (enforced server-side): rename a category in place. */
+export async function renameCategory(id: string, name: string): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const next = name.trim();
+  const { error } = await supabase.rpc('rename_category', { cat: id, new_name: next });
+  if (!error) return {};
+  return {
+    error:
+      error.code === '23505' ? `"${next}" already exists — merge into it instead.` : error.message,
+  };
+}
+
+/**
+ * Admin-only (enforced server-side): move every ranking from `source` into
+ * `target` and delete `source`. The averages recompute; there is no undo.
+ */
+export async function mergeCategories(source: string, target: string): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const { error } = await supabase.rpc('merge_categories', { source, target });
   return error ? { error: error.message } : {};
 }
 

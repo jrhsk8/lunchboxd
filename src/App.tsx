@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 
 import { KeepAccount, SignInCard, useAuth } from './auth';
-import { deleteRanking, rankFood, useBoard, useCategoryRankings, type CategoryStat } from './data';
+import {
+  deleteRanking,
+  mergeCategories,
+  rankFood,
+  renameCategory,
+  useBoard,
+  useCategoryRankings,
+  type CategoryStat,
+} from './data';
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
@@ -195,6 +203,7 @@ function Site() {
                   setOpenId={setOpenId}
                   version={version}
                   userId={session?.user.id ?? null}
+                  viewerIsAdmin={isAdmin}
                   onChanged={refresh}
                 />
               ) : (
@@ -288,6 +297,7 @@ function RankForm({
   const [categoryChoice, setCategoryChoice] = useState(NEW_SENTINEL);
   const [newCategory, setNewCategory] = useState('');
   const [food, setFood] = useState('');
+  const [review, setReview] = useState('');
   const [score, setScore] = useState(0);
   const [loved, setLoved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -308,6 +318,7 @@ function RankForm({
       food,
       score,
       hearted: loved,
+      review,
     });
     setBusy(false);
     if (result.error) {
@@ -315,6 +326,7 @@ function RankForm({
       return;
     }
     setFood('');
+    setReview('');
     setScore(0);
     setLoved(false);
     setNewCategory('');
@@ -366,6 +378,18 @@ function RankForm({
         />
       </label>
 
+      <label className={label}>
+        Review (optional)
+        <textarea
+          className={`${input} resize-none`}
+          placeholder="Cold by the time I got home. Still perfect."
+          rows={2}
+          maxLength={2000}
+          value={review}
+          onChange={(e) => setReview(e.target.value)}
+        />
+      </label>
+
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Score</span>
         <div className="flex items-center justify-between gap-3">
@@ -407,6 +431,7 @@ function CategoryBoard({
   setOpenId,
   version,
   userId,
+  viewerIsAdmin,
   onChanged,
 }: {
   stats: CategoryStat[];
@@ -415,6 +440,7 @@ function CategoryBoard({
   setOpenId: (id: string | null) => void;
   version: number;
   userId: string | null;
+  viewerIsAdmin: boolean;
   onChanged: () => void;
 }) {
   if (!loaded) return <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>;
@@ -470,10 +496,13 @@ function CategoryBoard({
             </button>
             {open && (
               <CategoryDetail
-                categoryId={c.id}
+                category={c}
+                stats={stats}
                 version={version}
                 userId={userId}
+                viewerIsAdmin={viewerIsAdmin}
                 onChanged={onChanged}
+                onMerged={(targetId) => setOpenId(targetId)}
               />
             )}
           </article>
@@ -483,18 +512,148 @@ function CategoryBoard({
   );
 }
 
+/** Admin-only category surgery inside the expanded panel: rename, or fold into another. */
+function CategoryAdminTools({
+  category,
+  stats,
+  onChanged,
+  onMerged,
+}: {
+  category: CategoryStat;
+  stats: CategoryStat[];
+  onChanged: () => void;
+  onMerged: (targetId: string) => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(category.name);
+  const [target, setTarget] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const btnSmall =
+    'cursor-pointer rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-edge-hover hover:bg-raised-hover disabled:cursor-default disabled:opacity-40';
+
+  async function saveRename() {
+    const next = name.trim();
+    if (busy || !next) return;
+    if (next === category.name) {
+      setRenaming(false);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await renameCategory(category.id, next);
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setRenaming(false);
+    onChanged();
+  }
+
+  async function merge() {
+    const t = stats.find((s) => s.id === target);
+    if (busy || !t) return;
+    if (
+      !window.confirm(
+        `Fold "${category.name}" into "${t.name}"? Every ranking moves over, "${category.name}" disappears, and the averages recompute. There is no undo.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await mergeCategories(category.id, t.id);
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    onMerged(t.id);
+    onChanged();
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-edge pt-3">
+      <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Admin</span>
+      {renaming ? (
+        <>
+          <input
+            className="rounded-lg border border-edge bg-field px-2 py-1 text-xs text-ink focus:border-clay focus:outline-none"
+            maxLength={60}
+            value={name}
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveRename();
+              if (e.key === 'Escape') setRenaming(false);
+            }}
+          />
+          <button type="button" className={btnSmall} disabled={busy} onClick={saveRename}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="button"
+            className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-ink"
+            onClick={() => setRenaming(false)}
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className={btnSmall}
+          onClick={() => {
+            setName(category.name);
+            setError(null);
+            setRenaming(true);
+          }}
+        >
+          Rename
+        </button>
+      )}
+      <select
+        className="rounded-lg border border-edge bg-field px-2 py-1 text-xs text-ink focus:border-clay focus:outline-none"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+      >
+        <option value="">Merge into…</option>
+        {stats
+          .filter((s) => s.id !== category.id)
+          .map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+      </select>
+      <button type="button" className={btnSmall} disabled={busy || !target} onClick={merge}>
+        Merge
+      </button>
+      {error && <span className="text-xs text-bad">{error}</span>}
+    </div>
+  );
+}
+
 function CategoryDetail({
-  categoryId,
+  category,
+  stats,
   version,
   userId,
+  viewerIsAdmin,
   onChanged,
+  onMerged,
 }: {
-  categoryId: string;
+  category: CategoryStat;
+  stats: CategoryStat[];
   version: number;
   userId: string | null;
+  viewerIsAdmin: boolean;
   onChanged: () => void;
+  onMerged: (targetId: string) => void;
 }) {
-  const rankings = useCategoryRankings(categoryId, version);
+  const rankings = useCategoryRankings(category.id, version);
 
   if (rankings === null)
     return <p className="m-0 border-t-2 border-edge px-5 py-4 text-sm text-faint">Loading…</p>;
@@ -517,12 +676,19 @@ function CategoryDetail({
             key={r.id}
             className="group flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-raised"
           >
-            <span className="min-w-0 flex-1 truncate text-sm">
-              {r.food}
-              <span className="ml-2 text-xs text-faint">
-                <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
-                {userId === r.user_id && ' (you)'}
+            <span className="min-w-0 flex-1 text-sm">
+              <span className="block truncate">
+                {r.food}
+                <span className="ml-2 text-xs text-faint">
+                  <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
+                  {userId === r.user_id && ' (you)'}
+                </span>
               </span>
+              {r.review && (
+                <span className="mt-0.5 block truncate text-xs text-dim italic" title={r.review}>
+                  "{r.review}"
+                </span>
+              )}
             </span>
             <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
               {timeAgo(r.created_at)}
@@ -550,6 +716,14 @@ function CategoryDetail({
           </li>
         ))}
       </ul>
+      {viewerIsAdmin && (
+        <CategoryAdminTools
+          category={category}
+          stats={stats}
+          onChanged={onChanged}
+          onMerged={onMerged}
+        />
+      )}
     </div>
   );
 }
@@ -585,13 +759,21 @@ function ActivityFeed({
             className="flex items-center gap-3 border-b border-edge py-3 last:border-b-0"
           >
             <span className="min-w-0 flex-1 text-sm">
-              <UserLink
-                username={a.profiles?.username ?? null}
-                className="font-bold"
-                meta={a.profiles}
-              />{' '}
-              <span className="text-dim">ranked</span> {a.food} <span className="text-dim">in</span>{' '}
-              <span className="font-semibold text-clay">{a.categories?.name ?? '?'}</span>
+              <span className="block truncate">
+                <UserLink
+                  username={a.profiles?.username ?? null}
+                  className="font-bold"
+                  meta={a.profiles}
+                />{' '}
+                <span className="text-dim">ranked</span> {a.food}{' '}
+                <span className="text-dim">in</span>{' '}
+                <span className="font-semibold text-clay">{a.categories?.name ?? '?'}</span>
+              </span>
+              {a.review && (
+                <span className="mt-0.5 block truncate text-xs text-dim italic" title={a.review}>
+                  "{a.review}"
+                </span>
+              )}
             </span>
             <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
               {timeAgo(a.created_at)}
