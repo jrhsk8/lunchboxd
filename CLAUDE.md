@@ -19,7 +19,7 @@ This file is a router: the doc map, the hard rules, and the commands. Detail liv
 
 1. **Everything database-side lives in the `lunchboxd` schema; nothing ever touches `public`.** The hosted Supabase project is shared with gambdle.net. (docs/app/data-model.md)
 2. **Every auth call that sends an email passes `emailRedirectTo`** — the project's Site URL is Gambdle's, not ours. (docs/app/auth.md)
-3. **Deploy is a deliberate manual step, never automated on push**, and stages only the `lunchboxd/` folder in the Gambdle Pages repo. (docs/meta/deploy.md)
+3. **Deploy is a deliberate manual step, never automated on push** — `wrangler pages deploy` to Cloudflare, nothing else. This repo deploys nothing to Gambdle; the two share only the Supabase project. (docs/meta/deploy.md)
 4. **No WSL for this project.** Build, verify, and deploy from Windows. (docs/meta/deploy.md § Local development backend)
 5. **`npm run build` green (tsc + vite) and `npx prettier --write src` clean before committing source changes.**
 

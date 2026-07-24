@@ -2,6 +2,12 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-24 — The gambdle.net redirect stub is Gambdle's file; it must carry the query string
+
+Found from a user report ("I lost my handle, the email stuff didn't work"): the stub that forwards `gambdle.net/lunchboxd/` to lunchboxd.live forwarded `location.hash` only. Supabase auth links use supabase-js v2's default **PKCE** flow, so the token comes back as `?code=` in the **query string** — and those links land on the old URL every time GoTrue falls back to the Site URL, which is permanently Gambdle's. The stub dropped the code and delivered people to lunchboxd.live signed out. Fixed to forward `location.search + location.hash` (Gambdle `ba50c75`).
+
+Owner-ruled at the same time: **the stub belongs to Gambdle, and this repo deploys nothing to Gambdle.** The `deploy/gambdle-redirect/` copy and the staging recipe are deleted; the two projects are now unrelated apart from the shared Supabase project. Anyone changing the redirect does it in the Gambdle repo. Mechanics: docs/meta/deploy.md § Old URL redirect.
+
 ### 2026-07-24 — The sign-in card names the returning-user path; auth buttons say what they do
 
 Owner-asked for "a sign in option if you already have an account". The magic-link field already existed but sat under the divider "or keep your account", which reads as _persistence for a newcomer_, not _sign in for a returning user_ — the affordance was there and invisible. Divider is now "already have an account?" and the button "Send sign-in link" (was "Email link"). Owner-ruled on the unknown-email case: **keep creating an account** (an address with no account still gets a link and lands on a generated `eater-*` handle to rename) and **"the buttons should be very clear what they do and function like any other site"** — which overrides voice.md's "buttons are short verbs" where the short verb would be ambiguous about the mechanic. A helper line states the mechanic outright: no password, unseen address starts a new account. Guest-first ordering is unchanged; "Start ranking" is still the primary action.

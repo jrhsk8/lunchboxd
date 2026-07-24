@@ -1,6 +1,6 @@
 # Deploy — Cloudflare Pages on lunchboxd.live + shared hosted Supabase
 
-Live at <https://lunchboxd.live/>. Two halves: a static frontend on Cloudflare Pages (its own apex domain), and a backend riding in Gambdle's hosted Supabase project, isolated in the `lunchboxd` schema. Deploy is a deliberate manual step, never automated on push. The old `gambdle.net/lunchboxd/` URL now serves a redirect stub (below).
+Live at <https://lunchboxd.live/>. Two halves: a static frontend on Cloudflare Pages (its own apex domain), and a backend riding in Gambdle's hosted Supabase project, isolated in the `lunchboxd` schema. Deploy is a deliberate manual step, never automated on push, and goes to Cloudflare only — this repo no longer deploys anything to Gambdle. The old `gambdle.net/lunchboxd/` URL serves a redirect stub that Gambdle now owns outright (below).
 
 ## Frontend (Cloudflare Pages, project `lunchboxd`)
 
@@ -27,17 +27,11 @@ Three things that cost hours on the day, each worth knowing before repeating thi
 
 Keep the `_dmarc` (`p=reject`), `_domainkey`, and `v=spf1 -all` TXT records. The domain sends no mail (auth email goes out from maxout.art via Resend), so they exist purely to block spoofing.
 
-## Old URL redirect (gambdle.net/lunchboxd)
+## Old URL redirect (gambdle.net/lunchboxd) — Gambdle's file, not ours
 
-The Gambdle Pages folder now holds a one-file redirect stub — `deploy/gambdle-redirect/index.html` in this repo — that forwards to lunchboxd.live carrying `location.hash`, so deep links (`#/c/<name>`, `#/u/<handle>`) survive. **Deployed 2026-07-24** (Gambdle commit `ccf5da3`), replacing the app folder. The recipe below is kept for reference — it only needs rerunning if the stub itself changes. Stage ONLY `lunchboxd/`; the Gambdle repo may have unrelated work in progress.
+`gambdle.net/lunchboxd/` serves a one-file stub that forwards to lunchboxd.live, so old links and bookmarks survive. **That file lives in the Gambdle repo alone** (`lunchboxd/index.html`); a copy used to sit here at `deploy/gambdle-redirect/`, removed 2026-07-24. Nothing in this repo deploys to Gambdle any more — the only remaining tie between the two projects is the shared Supabase project below. Edit the stub there, in Gambdle's own deploy flow.
 
-Because the stub carries the hash, it also rescues auth links: the shared project's Site URL is still `https://gambdle.net/lunchboxd/`, so any GoTrue fallback to Site URL lands here and forwards to lunchboxd.live with the token intact.
-
-```
-rm -r ../Documents/GitHub/Gambdle/lunchboxd
-cp -r deploy/gambdle-redirect ../Documents/GitHub/Gambdle/lunchboxd
-cd ../Documents/GitHub/Gambdle && git add lunchboxd && git commit -m "Redirect lunchboxd to lunchboxd.live" && git push
-```
+The stub must forward **`location.search + location.hash`**, and the reason is easy to get wrong. The hash carries deep links (`#/c/<name>`, `#/u/<handle>`). The query string carries the `?code=` of a Supabase auth link — the client uses supabase-js v2's default PKCE flow, which returns the token as a query parameter, not a fragment. Auth links land on the old URL whenever GoTrue falls back to the Site URL, which is still `https://gambdle.net/lunchboxd/` and can't be changed (see the redirect allow-list below). A hash-only forward therefore dropped the code silently and delivered people to lunchboxd.live signed out — the "the email link didn't work" report, shipped in Gambdle `ccf5da3` and fixed in `ba50c75`.
 
 ## Backend (hosted Supabase, project `kxbteesmfozqzoxzktzv`)
 
