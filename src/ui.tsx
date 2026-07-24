@@ -19,11 +19,12 @@ export function timeAgo(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export type Route = { page: 'home' } | { page: 'profile'; username: string };
+export type Route =
+  { page: 'home' } | { page: 'profile'; username: string } | { page: 'category'; name: string };
 
 /**
- * Hash routing (#/u/handle) because the site is a static folder under
- * gambdle.net/lunchboxd with no SPA-fallback rewrites. Hashes also never
+ * Hash routing (#/u/handle, #/c/category) because the site is a static folder
+ * under gambdle.net/lunchboxd with no SPA-fallback rewrites. Hashes also never
  * collide with Supabase magic-link fragments (#access_token=…), which the
  * client consumes and clears before these routes matter.
  */
@@ -34,10 +35,13 @@ export function useRoute(): Route {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
-  const m = /^#\/u\/(.+)$/.exec(hash);
+  const m = /^#\/([uc])\/(.+)$/.exec(hash);
   if (m) {
     try {
-      return { page: 'profile', username: decodeURIComponent(m[1]) };
+      const value = decodeURIComponent(m[2]);
+      return m[1] === 'u'
+        ? { page: 'profile', username: value }
+        : { page: 'category', name: value };
     } catch {
       // Malformed percent-encoding in a hand-typed URL: fall through to home.
     }
@@ -47,6 +51,23 @@ export function useRoute(): Route {
 
 export function profileHref(username: string) {
   return `#/u/${encodeURIComponent(username)}`;
+}
+
+export function categoryHref(name: string) {
+  return `#/c/${encodeURIComponent(name)}`;
+}
+
+/** A category name that navigates to its page, clay like every category mention. */
+export function CategoryLink({ name, className = '' }: { name: string; className?: string }) {
+  return (
+    <a
+      href={categoryHref(name)}
+      className={`font-semibold text-clay hover:text-clay-hover hover:underline ${className}`}
+      title={`${name} — category page`}
+    >
+      {name}
+    </a>
+  );
 }
 
 /**

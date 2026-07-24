@@ -149,6 +149,48 @@ export function useBoard() {
   return { stats, activity, loaded, version, refresh };
 }
 
+/**
+ * One category's stat row looked up by name (via `categories`, whose citext
+ * unique makes the URL case-insensitive). `undefined` while loading, `null`
+ * when no such category exists.
+ */
+export function useCategoryStat(name: string, version: number) {
+  const [stat, setStat] = useState<CategoryStat | null | undefined>(undefined);
+
+  useEffect(() => {
+    setStat(undefined);
+  }, [name]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    let alive = true;
+    (async () => {
+      const { data: cat } = await client
+        .from('categories')
+        .select('id')
+        .eq('name', name)
+        .maybeSingle();
+      if (!alive) return;
+      if (!cat) {
+        setStat(null);
+        return;
+      }
+      const { data } = await client
+        .from('category_stats')
+        .select('*')
+        .eq('id', cat.id)
+        .maybeSingle();
+      if (alive) setStat((data as CategoryStat | null) ?? null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [name, version]);
+
+  return stat;
+}
+
 /** Everyone's rankings within one category, newest first. */
 export function useCategoryRankings(categoryId: string | null, version: number) {
   const [rankings, setRankings] = useState<Ranking[] | null>(null);

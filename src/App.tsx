@@ -8,12 +8,16 @@ import {
   renameCategory,
   useBoard,
   useCategoryRankings,
+  useCategoryStat,
   type CategoryStat,
+  type Ranking,
 } from './data';
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
 import {
+  categoryHref,
+  CategoryLink,
   Heart,
   kicker,
   panel,
@@ -62,7 +66,12 @@ function Site() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
 
-  const routeKey = route.page === 'profile' ? `u/${route.username}` : 'home';
+  const routeKey =
+    route.page === 'profile'
+      ? `u/${route.username}`
+      : route.page === 'category'
+        ? `c/${route.name}`
+        : 'home';
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [routeKey]);
@@ -144,7 +153,16 @@ function Site() {
         </span>
       </header>
 
-      {route.page === 'profile' ? (
+      {route.page === 'category' ? (
+        <CategoryPage
+          name={route.name}
+          stats={stats}
+          version={version}
+          userId={session?.user.id ?? null}
+          viewerIsAdmin={isAdmin}
+          onChanged={refresh}
+        />
+      ) : route.page === 'profile' ? (
         <ProfilePage
           username={route.username}
           version={version}
@@ -517,11 +535,13 @@ function CategoryAdminTools({
   category,
   stats,
   onChanged,
+  onRenamed,
   onMerged,
 }: {
   category: CategoryStat;
   stats: CategoryStat[];
   onChanged: () => void;
+  onRenamed?: (newName: string) => void;
   onMerged: (targetId: string) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
@@ -549,6 +569,7 @@ function CategoryAdminTools({
       return;
     }
     setRenaming(false);
+    onRenamed?.(next);
     onChanged();
   }
 
@@ -663,59 +684,24 @@ function CategoryDetail({
 
   return (
     <div className="border-t-2 border-edge bg-field/40 px-5 py-4">
-      {myAvg !== null && (
-        <p className="mt-0 mb-3 text-xs text-dim">
-          Your average here:{' '}
-          <span className={`font-bold tabular-nums ${scoreTone(myAvg)}`}>{myAvg.toFixed(2)}</span>{' '}
-          across {mine.length} {mine.length === 1 ? 'ranking' : 'rankings'}
-        </p>
-      )}
-      <ul className="m-0 flex list-none flex-col gap-1 p-0">
-        {rankings.map((r) => (
-          <li
-            key={r.id}
-            className="group flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-raised"
-          >
-            <span className="min-w-0 flex-1 text-sm">
-              <span className="block truncate">
-                {r.food}
-                <span className="ml-2 text-xs text-faint">
-                  <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
-                  {userId === r.user_id && ' (you)'}
-                </span>
-              </span>
-              {r.review && (
-                <span className="mt-0.5 block truncate text-xs text-dim italic" title={r.review}>
-                  "{r.review}"
-                </span>
-              )}
-            </span>
-            <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
-              {timeAgo(r.created_at)}
-            </span>
-            <Stars value={Number(r.score)} size={13} />
-            <span className="w-8 text-right text-sm font-bold tabular-nums">
-              {Number(r.score).toFixed(1)}
-            </span>
-            <Heart ranking={r} userId={userId} onChanged={onChanged} />
-            {userId === r.user_id ? (
-              <button
-                type="button"
-                className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-bad"
-                aria-label={`delete ${r.food}`}
-                onClick={async () => {
-                  await deleteRanking(r.id);
-                  onChanged();
-                }}
-              >
-                ✕
-              </button>
-            ) : (
-              <span className="w-[22px] shrink-0" aria-hidden />
-            )}
-          </li>
-        ))}
-      </ul>
+      <p className="mt-0 mb-3 flex items-baseline justify-between gap-3 text-xs">
+        {myAvg !== null ? (
+          <span className="text-dim">
+            Your average here:{' '}
+            <span className={`font-bold tabular-nums ${scoreTone(myAvg)}`}>{myAvg.toFixed(2)}</span>{' '}
+            across {mine.length} {mine.length === 1 ? 'ranking' : 'rankings'}
+          </span>
+        ) : (
+          <span />
+        )}
+        <a
+          href={categoryHref(category.name)}
+          className="shrink-0 font-semibold text-faint hover:text-clay"
+        >
+          Category page →
+        </a>
+      </p>
+      <RankingRows rankings={rankings} userId={userId} onChanged={onChanged} />
       {viewerIsAdmin && (
         <CategoryAdminTools
           category={category}
@@ -723,6 +709,159 @@ function CategoryDetail({
           onChanged={onChanged}
           onMerged={onMerged}
         />
+      )}
+    </div>
+  );
+}
+
+/** The ranking-row list shared by the expanded board panel and the category page. */
+function RankingRows({
+  rankings,
+  userId,
+  onChanged,
+}: {
+  rankings: Ranking[];
+  userId: string | null;
+  onChanged: () => void;
+}) {
+  return (
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
+      {rankings.map((r) => (
+        <li
+          key={r.id}
+          className="group flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-raised"
+        >
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="block truncate">
+              {r.food}
+              <span className="ml-2 text-xs text-faint">
+                <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
+                {userId === r.user_id && ' (you)'}
+              </span>
+            </span>
+            {r.review && (
+              <span className="mt-0.5 block truncate text-xs text-dim italic" title={r.review}>
+                "{r.review}"
+              </span>
+            )}
+          </span>
+          <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
+            {timeAgo(r.created_at)}
+          </span>
+          <Stars value={Number(r.score)} size={13} />
+          <span className="w-8 text-right text-sm font-bold tabular-nums">
+            {Number(r.score).toFixed(1)}
+          </span>
+          <Heart ranking={r} userId={userId} onChanged={onChanged} />
+          {userId === r.user_id ? (
+            <button
+              type="button"
+              className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-bad"
+              aria-label={`delete ${r.food}`}
+              onClick={async () => {
+                await deleteRanking(r.id);
+                onChanged();
+              }}
+            >
+              ✕
+            </button>
+          ) : (
+            <span className="w-[22px] shrink-0" aria-hidden />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** One category's public page: the communal record for a single namespace. */
+function CategoryPage({
+  name,
+  stats,
+  version,
+  userId,
+  viewerIsAdmin,
+  onChanged,
+}: {
+  name: string;
+  stats: CategoryStat[];
+  version: number;
+  userId: string | null;
+  viewerIsAdmin: boolean;
+  onChanged: () => void;
+}) {
+  const stat = useCategoryStat(name, version);
+  const rankings = useCategoryRankings(stat?.id ?? null, version);
+
+  if (stat === undefined)
+    return <p className="m-0 py-16 text-center text-sm text-faint">Loading…</p>;
+
+  if (stat === null) {
+    return (
+      <div className={`${panel} mx-auto max-w-lg px-6 py-12 text-center`}>
+        <p className="m-0 text-[15px] font-semibold">No category by that name</p>
+        <p className="mt-2 mb-4 text-sm text-dim">"{name}" hasn't been invented yet.</p>
+        <a href="#/" className="text-sm font-semibold text-clay hover:text-clay-hover">
+          ← Back to the board
+        </a>
+      </div>
+    );
+  }
+
+  const avg = stat.avg_score === null ? null : Number(stat.avg_score);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
+            ← Back to the board
+          </a>
+          <p className={`${kicker} mt-4 mb-1.5`}>Category</p>
+          <h1 className="m-0 text-[28px] font-bold">{stat.name}</h1>
+          <p className="mt-1 mb-0 text-sm text-dim">
+            {stat.ranking_count} {stat.ranking_count === 1 ? 'ranking' : 'rankings'} ·{' '}
+            {stat.ranker_count} {stat.ranker_count === 1 ? 'person' : 'people'}
+          </p>
+        </div>
+        {avg !== null && (
+          <span className="flex items-center gap-3">
+            <Stars value={avg} />
+            <span className={`text-3xl font-bold tabular-nums ${scoreTone(avg)}`}>
+              {avg.toFixed(2)}
+            </span>
+          </span>
+        )}
+      </div>
+
+      {rankings === null ? (
+        <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
+      ) : rankings.length === 0 ? (
+        <div className={`${panel} px-6 py-12 text-center`}>
+          <p className="m-0 text-[15px] font-semibold">Nothing ranked yet</p>
+          <p className="mt-2 mb-0 text-sm text-dim">The first bite is yours.</p>
+        </div>
+      ) : (
+        <div className={`${panel} px-5 py-3`}>
+          <RankingRows rankings={rankings} userId={userId} onChanged={onChanged} />
+        </div>
+      )}
+
+      {viewerIsAdmin && (
+        <div className={`${panel} px-5 py-1`}>
+          <CategoryAdminTools
+            category={stat}
+            stats={stats}
+            onChanged={onChanged}
+            onRenamed={(newName) => {
+              window.location.hash = categoryHref(newName).slice(1);
+            }}
+            onMerged={(targetId) => {
+              const target = stats.find((s) => s.id === targetId);
+              if (target) window.location.hash = categoryHref(target.name).slice(1);
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -767,7 +906,11 @@ function ActivityFeed({
                 />{' '}
                 <span className="text-dim">ranked</span> {a.food}{' '}
                 <span className="text-dim">in</span>{' '}
-                <span className="font-semibold text-clay">{a.categories?.name ?? '?'}</span>
+                {a.categories ? (
+                  <CategoryLink name={a.categories.name} />
+                ) : (
+                  <span className="font-semibold text-clay">?</span>
+                )}
               </span>
               {a.review && (
                 <span className="mt-0.5 block truncate text-xs text-dim italic" title={a.review}>

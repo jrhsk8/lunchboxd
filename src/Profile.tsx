@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { banProfile, deleteRanking, renameProfile, setProfileTags, useProfile } from './data';
 import { Stars } from './Stars';
 import {
+  CategoryLink,
   Heart,
   kicker,
   panel,
@@ -331,7 +332,11 @@ export function ProfilePage({
                     <span className="min-w-0 flex-1 text-sm">
                       <span className="block truncate">
                         {r.food} <span className="text-dim">in</span>{' '}
-                        <span className="font-semibold text-clay">{r.categories?.name ?? '?'}</span>
+                        {r.categories ? (
+                          <CategoryLink name={r.categories.name} />
+                        ) : (
+                          <span className="font-semibold text-clay">?</span>
+                        )}
                       </span>
                       {r.review && (
                         <span

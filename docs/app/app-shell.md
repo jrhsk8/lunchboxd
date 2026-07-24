@@ -8,12 +8,13 @@ The app is one React SPA with **hash routing** (`src/ui.tsx` `useRoute`):
 
 - `#/` (or no hash) — home: hero, rank-a-food / sign-in panel, and the categories/activity tabs.
 - `#/u/<handle>` — a profile page ([Profile.tsx](../../src/Profile.tsx)): stats tiles + full ranking history. Handles are percent-encoded in hrefs (`profileHref`); malformed encodings fall back to home.
+- `#/c/<name>` — a category page (`CategoryPage` in App.tsx): name, average, everyone's rankings, and the admin tools for admins. Looked up by name through `categories`' citext unique, so the URL is case-insensitive; `categoryHref` percent-encodes. Category names link here from every feed via `CategoryLink`, plus a "Category page →" link in the expanded board panel.
 
 Hash routing is a deliberate choice, not a shortcut: the site is a static folder under `gambdle.net/lunchboxd` (GitHub Pages) with no SPA-fallback rewrites, so path routing would 404 on deep links. Hashes also can't collide with Supabase magic-link fragments (`#access_token=…`), which supabase-js consumes and clears on load. The header/footer stay mounted across routes; only the body swaps (`Site` in App.tsx).
 
 ## Component map
 
-- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (score + optional review text), `CategoryBoard`/`CategoryDetail` (admins get `CategoryAdminTools`: rename / merge-into), `ActivityFeed`, `Terms`. Feed rows show a ranking's review as a one-line italic quote under the headline (full text in the `title` tooltip).
+- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (score + optional review text), `CategoryBoard`/`CategoryDetail`, `CategoryPage`, `RankingRows` (the row list shared by panel and page), `CategoryAdminTools` (admin rename / merge-into, in both the panel and the page), `ActivityFeed`, `Terms`. Feed rows show a ranking's review as a one-line italic quote under the headline (full text in the `title` tooltip).
 - `Profile.tsx` — `ProfilePage` (stats + history; own-view gets edit controls).
 - `auth.tsx` — `useAuth`, `SignInCard` (guest-first), `KeepAccount`.
 - `Stars.tsx` — `Stars` (fractional display), `StarInput` (half-star hit zones).
