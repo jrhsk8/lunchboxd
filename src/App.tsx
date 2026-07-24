@@ -37,6 +37,9 @@ const input =
   'rounded-lg border border-edge bg-field px-3 py-2.5 text-sm text-ink placeholder:text-faint focus:border-clay focus:outline-none';
 const label = 'flex flex-col gap-1.5 text-[11px] font-semibold tracking-wider text-dim uppercase';
 
+const byName = (a: CategoryStat, b: CategoryStat) =>
+  a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
 export default function App() {
   if (!supabase) return <SetupNotice />;
   return <Site />;
@@ -361,7 +364,7 @@ function RankForm({
           onChange={(e) => setCategoryChoice(e.target.value)}
         >
           <option value={NEW_SENTINEL}>+ New category…</option>
-          {stats.map((c) => (
+          {[...stats].sort(byName).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -461,6 +464,8 @@ function CategoryBoard({
   viewerIsAdmin: boolean;
   onChanged: () => void;
 }) {
+  const [sort, setSort] = useState<'rank' | 'az'>('rank');
+
   if (!loaded) return <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>;
 
   if (stats.length === 0) {
@@ -475,9 +480,28 @@ function CategoryBoard({
     );
   }
 
+  const ordered = sort === 'az' ? [...stats].sort(byName) : stats;
+
   return (
     <>
-      {stats.map((c, i) => {
+      <div className="mb-1 flex items-center justify-end gap-2">
+        <span className="text-[11px] font-semibold tracking-wider text-faint uppercase">Sort</span>
+        <div className="flex gap-0.5 rounded-lg border border-edge bg-raised p-0.5">
+          {(['rank', 'az'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`cursor-pointer rounded-[6px] border-0 px-2.5 py-1 text-xs font-semibold transition-colors ${
+                sort === s ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:text-ink'
+              }`}
+              onClick={() => setSort(s)}
+            >
+              {s === 'rank' ? 'Top rated' : 'A–Z'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {ordered.map((c, i) => {
         const avg = c.avg_score === null ? null : Number(c.avg_score);
         const open = openId === c.id;
         return (
@@ -489,7 +513,7 @@ function CategoryBoard({
               aria-expanded={open}
             >
               <span className="w-7 text-sm font-bold text-faint tabular-nums">
-                {avg === null ? '—' : `#${i + 1}`}
+                {sort === 'rank' ? (avg === null ? '—' : `#${i + 1}`) : ''}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-bold">{c.name}</span>
@@ -643,6 +667,7 @@ function CategoryAdminTools({
         <option value="">Merge into…</option>
         {stats
           .filter((s) => s.id !== category.id)
+          .sort(byName)
           .map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
