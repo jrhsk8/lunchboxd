@@ -64,7 +64,10 @@ export function KeepAccount() {
   async function save() {
     if (!supabase || !email.includes('@')) return;
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({ email: email.trim() });
+    const { error } = await supabase.auth.updateUser(
+      { email: email.trim() },
+      { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
+    );
     setBusy(false);
     setStatus(
       error
