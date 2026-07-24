@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { setHearted, type Ranking } from './data';
 
@@ -20,13 +20,16 @@ export function timeAgo(iso: string) {
 }
 
 export type Route =
-  { page: 'home' } | { page: 'profile'; username: string } | { page: 'category'; name: string };
+  | { page: 'home' }
+  | { page: 'profile'; username: string }
+  | { page: 'category'; name: string }
+  | { page: 'tag'; tag: string };
 
 /**
- * Hash routing (#/u/handle, #/c/category) because the site is a static folder
- * under gambdle.net/lunchboxd with no SPA-fallback rewrites. Hashes also never
- * collide with Supabase magic-link fragments (#access_token=…), which the
- * client consumes and clears before these routes matter.
+ * Hash routing (#/u/handle, #/c/category, #/t/hashtag) because the site is a
+ * static folder under gambdle.net/lunchboxd with no SPA-fallback rewrites.
+ * Hashes also never collide with Supabase magic-link fragments (#access_token=…),
+ * which the client consumes and clears before these routes matter.
  */
 export function useRoute(): Route {
   const [hash, setHash] = useState(() => window.location.hash);
@@ -35,13 +38,13 @@ export function useRoute(): Route {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
-  const m = /^#\/([uc])\/(.+)$/.exec(hash);
+  const m = /^#\/([uct])\/(.+)$/.exec(hash);
   if (m) {
     try {
       const value = decodeURIComponent(m[2]);
-      return m[1] === 'u'
-        ? { page: 'profile', username: value }
-        : { page: 'category', name: value };
+      if (m[1] === 'u') return { page: 'profile', username: value };
+      if (m[1] === 'c') return { page: 'category', name: value };
+      return { page: 'tag', tag: value };
     } catch {
       // Malformed percent-encoding in a hand-typed URL: fall through to home.
     }
@@ -55,6 +58,40 @@ export function profileHref(username: string) {
 
 export function categoryHref(name: string) {
   return `#/c/${encodeURIComponent(name)}`;
+}
+
+export function tagHref(tag: string) {
+  return `#/t/${encodeURIComponent(tag.toLowerCase())}`;
+}
+
+// A hashtag: '#' + word chars, only when not glued to a preceding word char
+// (so "a#b" and URL fragments like "x#frag" don't count). Capture group 1 is
+// the leading boundary char (kept as text), group 2 is the tag. No lookbehind,
+// for older-Safari safety.
+const HASHTAG_RE = /(^|[^A-Za-z0-9_])#([A-Za-z0-9_]+)/g;
+
+/** Renders review text with #hashtags turned into links to their tag page. */
+export function ReviewText({ text }: { text: string }) {
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(HASHTAG_RE)) {
+    const tagStart = (m.index ?? 0) + m[1].length;
+    if (tagStart > last) nodes.push(text.slice(last, tagStart));
+    const tag = m[2];
+    nodes.push(
+      <a
+        key={tagStart}
+        href={tagHref(tag)}
+        className="font-semibold text-clay hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        #{tag}
+      </a>,
+    );
+    last = tagStart + 1 + tag.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return <>{nodes}</>;
 }
 
 /** A category name that navigates to its page, clay like every category mention. */

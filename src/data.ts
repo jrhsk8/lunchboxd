@@ -191,6 +191,51 @@ export function useCategoryStat(name: string, version: number) {
   return stat;
 }
 
+/**
+ * Rankings whose review contains a given #hashtag, newest first. The DB does a
+ * cheap case-insensitive substring prefilter (`ilike %#tag%`); the client then
+ * refines with a word-boundary regex so "#tag" doesn't match "#tagged".
+ */
+export function useTagReviews(tag: string, version: number) {
+  const [rows, setRows] = useState<Activity[] | null>(null);
+  const clean = tag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+  useEffect(() => {
+    setRows(null);
+  }, [tag]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    if (!clean) {
+      setRows([]);
+      return;
+    }
+    const client = supabase;
+    let alive = true;
+    (async () => {
+      const { data } = await client
+        .from('rankings')
+        .select(
+          'id, food, score, created_at, user_id, hearted, review, profiles(username, is_admin, tags), categories(name)',
+        )
+        .ilike('review', `%#${clean}%`)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (!alive) return;
+      const boundary = new RegExp(`(^|[^a-z0-9_])#${clean}([^a-z0-9_]|$)`, 'i');
+      const list = ((data ?? []) as unknown as Activity[]).filter(
+        (r) => r.review && boundary.test(r.review),
+      );
+      setRows(list);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [clean, version]);
+
+  return rows;
+}
+
 /** Everyone's rankings within one category, newest first. */
 export function useCategoryRankings(categoryId: string | null, version: number) {
   const [rankings, setRankings] = useState<Ranking[] | null>(null);

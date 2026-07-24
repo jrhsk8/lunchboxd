@@ -9,6 +9,7 @@ import {
   panel,
   profileHref,
   profileTags,
+  ReviewText,
   scoreTone,
   SELF_TAGS,
   Tag,
@@ -343,7 +344,7 @@ export function ProfilePage({
                           className="mt-0.5 block truncate text-xs text-dim italic"
                           title={r.review}
                         >
-                          "{r.review}"
+                          "<ReviewText text={r.review} />"
                         </span>
                       )}
                     </span>

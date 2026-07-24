@@ -9,6 +9,7 @@ import {
   useBoard,
   useCategoryRankings,
   useCategoryStat,
+  useTagReviews,
   type CategoryStat,
   type Ranking,
 } from './data';
@@ -22,6 +23,7 @@ import {
   kicker,
   panel,
   profileHref,
+  ReviewText,
   scoreTone,
   Tag,
   timeAgo,
@@ -74,7 +76,9 @@ function Site() {
       ? `u/${route.username}`
       : route.page === 'category'
         ? `c/${route.name}`
-        : 'home';
+        : route.page === 'tag'
+          ? `t/${route.tag}`
+          : 'home';
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [routeKey]);
@@ -156,7 +160,9 @@ function Site() {
         </span>
       </header>
 
-      {route.page === 'category' ? (
+      {route.page === 'tag' ? (
+        <TagPage tag={route.tag} version={version} />
+      ) : route.page === 'category' ? (
         <CategoryPage
           name={route.name}
           stats={stats}
@@ -403,7 +409,7 @@ function RankForm({
         Review (optional)
         <textarea
           className={`${input} resize-none`}
-          placeholder="Cold by the time I got home. Still perfect."
+          placeholder="Cold by the time I got home, but still a #classic."
           rows={2}
           maxLength={2000}
           value={review}
@@ -766,7 +772,7 @@ function RankingRows({
             </span>
             {r.review && (
               <span className="mt-0.5 block truncate text-xs text-dim italic" title={r.review}>
-                "{r.review}"
+                "<ReviewText text={r.review} />"
               </span>
             )}
           </span>
@@ -894,6 +900,75 @@ function CategoryPage({
   );
 }
 
+/** Every review carrying a given #hashtag, newest first. */
+function TagPage({ tag, version }: { tag: string; version: number }) {
+  const clean = tag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const rows = useTagReviews(tag, version);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
+          ← Back to the board
+        </a>
+        <p className={`${kicker} mt-4 mb-1.5`}>Hashtag</p>
+        <h1 className="m-0 text-[28px] font-bold">#{clean}</h1>
+        <p className="mt-1 mb-0 text-sm text-dim">
+          {rows === null
+            ? 'Loading…'
+            : `${rows.length} ${rows.length === 1 ? 'review' : 'reviews'}`}
+        </p>
+      </div>
+
+      {rows === null ? (
+        <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
+      ) : rows.length === 0 ? (
+        <div className={`${panel} px-6 py-12 text-center`}>
+          <p className="m-0 text-[15px] font-semibold">No reviews yet</p>
+          <p className="mt-2 mb-0 text-sm text-dim">Nobody has tagged #{clean} yet.</p>
+        </div>
+      ) : (
+        <div className={`${panel} px-5 py-3`}>
+          <ul className="m-0 flex list-none flex-col p-0">
+            {rows.map((r) => (
+              <li
+                key={r.id}
+                className="flex flex-col gap-1.5 border-b border-edge py-3 last:border-b-0"
+              >
+                <p className="m-0 text-sm text-ink italic">
+                  "<ReviewText text={r.review ?? ''} />"
+                </p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-faint">
+                  <UserLink
+                    username={r.profiles?.username ?? null}
+                    className="font-semibold"
+                    meta={r.profiles}
+                  />
+                  <span className="text-dim">on</span>
+                  <span className="text-ink">{r.food}</span>
+                  <span className="text-dim">in</span>
+                  {r.categories ? (
+                    <CategoryLink name={r.categories.name} />
+                  ) : (
+                    <span className="font-semibold text-clay">?</span>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    <Stars value={Number(r.score)} size={12} />
+                    <span className="font-bold tabular-nums text-ink">
+                      {Number(r.score).toFixed(1)}
+                    </span>
+                  </span>
+                  <span>· {timeAgo(r.created_at)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActivityFeed({
   activity,
   loaded,
@@ -941,7 +1016,7 @@ function ActivityFeed({
               </span>
               {a.review && (
                 <span className="mt-0.5 block truncate text-xs text-dim italic" title={a.review}>
-                  "{a.review}"
+                  "<ReviewText text={a.review} />"
                 </span>
               )}
             </span>
