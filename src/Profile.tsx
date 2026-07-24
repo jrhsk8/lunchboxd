@@ -332,7 +332,9 @@ export function ProfilePage({
                       {r.food} <span className="text-dim">in</span>{' '}
                       <span className="font-semibold text-clay">{r.categories?.name ?? '?'}</span>
                     </span>
-                    <span className="text-xs text-faint">{timeAgo(r.created_at)}</span>
+                    <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
+                      {timeAgo(r.created_at)}
+                    </span>
                     <Stars value={Number(r.score)} size={13} />
                     <span className="w-8 text-right text-sm font-bold tabular-nums">
                       {Number(r.score).toFixed(1)}
@@ -341,7 +343,7 @@ export function ProfilePage({
                     {own ? (
                       <button
                         type="button"
-                        className="cursor-pointer rounded border-0 bg-transparent px-1 text-sm text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-bad"
+                        className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-bad"
                         aria-label={`delete ${r.food}`}
                         onClick={async () => {
                           await deleteRanking(r.id);
@@ -351,7 +353,7 @@ export function ProfilePage({
                         ✕
                       </button>
                     ) : (
-                      <span className="w-[22px]" aria-hidden />
+                      <span className="w-[22px] shrink-0" aria-hidden />
                     )}
                   </li>
                 ))}

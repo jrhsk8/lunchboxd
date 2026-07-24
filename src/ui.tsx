@@ -128,13 +128,18 @@ export function Heart({
   onChanged: () => void;
 }) {
   const own = userId === ranking.user_id;
+  // Every variant is the same fixed width so the feed columns line up.
   if (!own) {
     return ranking.hearted ? (
-      <span className="px-1 text-sm text-gold" title="They loved it" aria-label="loved it">
+      <span
+        className="inline-flex w-[26px] shrink-0 justify-center text-sm text-gold"
+        title="They loved it"
+        aria-label="loved it"
+      >
         ♥
       </span>
     ) : (
-      <span className="w-[26px]" aria-hidden />
+      <span className="w-[26px] shrink-0" aria-hidden />
     );
   }
   return (
@@ -143,7 +148,7 @@ export function Heart({
       aria-label={ranking.hearted ? 'unmark loved' : 'mark as loved'}
       aria-pressed={ranking.hearted}
       title={ranking.hearted ? 'You loved it — click to unmark' : 'Loved it?'}
-      className={`cursor-pointer rounded border-0 bg-transparent px-1 text-sm transition-transform hover:scale-115 ${
+      className={`w-[26px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm transition-transform hover:scale-115 ${
         ranking.hearted ? 'text-gold' : 'text-faint hover:text-gold'
       }`}
       onClick={async () => {
