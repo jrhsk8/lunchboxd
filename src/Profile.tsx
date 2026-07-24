@@ -10,6 +10,7 @@ import {
   profileHref,
   profileTags,
   ReviewText,
+  reviewLine,
   scoreTone,
   SELF_TAGS,
   Tag,
@@ -140,9 +141,11 @@ function RenameControl({
   }
 
   return (
-    <span className="flex items-center gap-1.5">
+    // Takes its own line on phones: sharing the h1 line squeezed the buttons
+    // until "Cancel" broke across three lines.
+    <span className="flex w-full items-center gap-1.5 sm:w-auto">
       <input
-        className="rounded-lg border border-edge bg-field px-2 py-1 text-sm font-normal text-ink placeholder:text-faint focus:border-clay focus:outline-none"
+        className="min-w-0 flex-1 rounded-lg border border-edge bg-field px-2 py-1 text-sm font-normal text-ink placeholder:text-faint focus:border-clay focus:outline-none sm:flex-none"
         placeholder="hotdog_hank"
         maxLength={24}
         value={name}
@@ -155,7 +158,7 @@ function RenameControl({
       />
       <button
         type="button"
-        className="cursor-pointer rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-semibold text-ink hover:bg-raised-hover disabled:opacity-40"
+        className="shrink-0 cursor-pointer rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-ink hover:bg-raised-hover disabled:opacity-40"
         disabled={busy || name.trim().length < 2}
         onClick={save}
       >
@@ -163,7 +166,7 @@ function RenameControl({
       </button>
       <button
         type="button"
-        className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-ink"
+        className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-faint hover:text-ink"
         onClick={() => setEditing(false)}
       >
         Cancel
@@ -239,7 +242,9 @@ export function ProfilePage({
     return (
       <div className={`${panel} mx-auto max-w-lg px-6 py-12 text-center`}>
         <p className="m-0 text-[15px] font-semibold">No one by that handle</p>
-        <p className="mt-2 mb-4 text-sm text-dim">"{username}" hasn't pulled up a chair here.</p>
+        <p className="mt-2 mb-4 text-sm break-words text-dim">
+          "{username}" hasn't pulled up a chair here.
+        </p>
         <a href="#/" className="text-sm font-semibold text-clay hover:text-clay-hover">
           ← Back to the board
         </a>
@@ -261,12 +266,14 @@ export function ProfilePage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        {/* min-w-0: without it this column sizes to the handle's (or the rename
+            row's) max-content and drags the header off a phone screen. */}
+        <div className="min-w-0">
           <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
             ← Back to the board
           </a>
           <p className={`${kicker} mt-4 mb-1.5`}>{own ? 'Your profile' : 'Profile'}</p>
-          <h1 className="m-0 flex flex-wrap items-center gap-2.5 text-[28px] font-bold">
+          <h1 className="m-0 flex flex-wrap items-center gap-2.5 text-[28px] font-bold break-all">
             {profile.username}
             {banned && (
               <span className="inline-flex items-center rounded-md border border-bad/40 bg-bad/10 px-2 py-0.5 align-middle text-[11px] font-bold tracking-wider text-bad uppercase">
@@ -331,7 +338,9 @@ export function ProfilePage({
                     className="group flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
                   >
                     <span className="min-w-0 text-sm sm:flex-1">
-                      <span className="block truncate">
+                      {/* Wraps on phones: one truncated line always cut the
+                          category link off the end. */}
+                      <span className="block break-words sm:truncate">
                         {r.food} <span className="text-dim">in</span>{' '}
                         {r.categories ? (
                           <CategoryLink name={r.categories.name} />
@@ -340,10 +349,7 @@ export function ProfilePage({
                         )}
                       </span>
                       {r.review && (
-                        <span
-                          className="mt-0.5 block truncate text-xs text-dim italic"
-                          title={r.review}
-                        >
+                        <span className={reviewLine} title={r.review}>
                           "<ReviewText text={r.review} />"
                         </span>
                       )}

@@ -24,6 +24,7 @@ import {
   panel,
   profileHref,
   ReviewText,
+  reviewLine,
   scoreTone,
   Tag,
   timeAgo,
@@ -419,13 +420,15 @@ function RankForm({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Score</span>
-        <div className="flex items-center justify-between gap-3">
+        {/* Wraps rather than squeezing: below ~360px the stars and the button
+            don't share a line, and "Loved it" was breaking mid-phrase. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <StarInput value={score} onChange={setScore} />
           <button
             type="button"
             aria-pressed={loved}
             title="The Letterboxd heart: loved it, whatever the score"
-            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
               loved
                 ? 'border-gold/50 bg-gold/10 text-gold'
                 : 'border-edge bg-transparent text-faint hover:border-edge-hover hover:text-gold'
@@ -512,13 +515,16 @@ function CategoryBoard({
         const open = openId === c.id;
         return (
           <article key={c.id} className={`${panel} overflow-hidden`}>
+            {/* Phones stack the row (rank + name, then stars/score/caret) — one
+                line can't hold both and the name loses, cropping to a letter.
+                `sm:contents` collapses it back to the desktop single line. */}
             <button
               type="button"
-              className="flex w-full cursor-pointer items-center gap-4 border-0 bg-transparent px-5 py-4 text-left font-sans text-ink transition-colors hover:bg-raised"
+              className="flex w-full cursor-pointer flex-wrap items-center gap-x-4 gap-y-1.5 border-0 bg-transparent px-5 py-4 text-left font-sans text-ink transition-colors hover:bg-raised sm:flex-nowrap"
               onClick={() => setOpenId(open ? null : c.id)}
               aria-expanded={open}
             >
-              <span className="w-7 text-sm font-bold text-faint tabular-nums">
+              <span className="w-7 shrink-0 text-sm font-bold text-faint tabular-nums">
                 {sort === 'rank' ? (avg === null ? '—' : `#${i + 1}`) : ''}
               </span>
               <span className="min-w-0 flex-1">
@@ -528,18 +534,20 @@ function CategoryBoard({
                   {c.ranker_count} {c.ranker_count === 1 ? 'person' : 'people'}
                 </span>
               </span>
-              {avg !== null && (
-                <span className="flex items-center gap-3">
-                  <Stars value={avg} />
-                  <span
-                    className={`w-12 text-right text-xl font-bold tabular-nums ${scoreTone(avg)}`}
-                  >
-                    {avg.toFixed(2)}
+              <span className="flex w-full items-center gap-3 sm:contents">
+                {avg !== null && (
+                  <span className="flex items-center gap-3">
+                    <Stars value={avg} />
+                    <span
+                      className={`w-12 text-right text-xl font-bold tabular-nums ${scoreTone(avg)}`}
+                    >
+                      {avg.toFixed(2)}
+                    </span>
                   </span>
+                )}
+                <span className="ml-auto text-[10px] text-faint sm:ml-0" aria-hidden>
+                  {open ? '▲' : '▼'}
                 </span>
-              )}
-              <span className="text-[10px] text-faint" aria-hidden>
-                {open ? '▲' : '▼'}
               </span>
             </button>
             {open && (
@@ -773,7 +781,7 @@ function RankingRows({
               <span className="min-w-0 truncate text-xs text-faint">{r.food}</span>
             </span>
             {r.review && (
-              <span className="mt-0.5 block truncate text-xs text-dim italic" title={r.review}>
+              <span className={reviewLine} title={r.review}>
                 "<ReviewText text={r.review} />"
               </span>
             )}
@@ -835,7 +843,7 @@ function CategoryPage({
     return (
       <div className={`${panel} mx-auto max-w-lg px-6 py-12 text-center`}>
         <p className="m-0 text-[15px] font-semibold">No category by that name</p>
-        <p className="mt-2 mb-4 text-sm text-dim">"{name}" hasn't been invented yet.</p>
+        <p className="mt-2 mb-4 text-sm break-words text-dim">"{name}" hasn't been invented yet.</p>
         <a href="#/" className="text-sm font-semibold text-clay hover:text-clay-hover">
           ← Back to the board
         </a>
@@ -848,12 +856,14 @@ function CategoryPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        {/* min-w-0 so a long category name wraps instead of sizing this column
+            to its max-content and pushing the header off a phone screen. */}
+        <div className="min-w-0">
           <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
             ← Back to the board
           </a>
           <p className={`${kicker} mt-4 mb-1.5`}>Category</p>
-          <h1 className="m-0 text-[28px] font-bold">{stat.name}</h1>
+          <h1 className="m-0 text-[28px] font-bold break-words">{stat.name}</h1>
           <p className="mt-1 mb-0 text-sm text-dim">
             {stat.ranking_count} {stat.ranking_count === 1 ? 'ranking' : 'rankings'} ·{' '}
             {stat.ranker_count} {stat.ranker_count === 1 ? 'person' : 'people'}
@@ -914,7 +924,9 @@ function TagPage({ tag, version }: { tag: string; version: number }) {
           ← Back to the board
         </a>
         <p className={`${kicker} mt-4 mb-1.5`}>Hashtag</p>
-        <h1 className="m-0 text-[28px] font-bold">#{clean}</h1>
+        {/* A hashtag has no length cap and no spaces: without break-words a long
+            one runs straight off a phone screen. */}
+        <h1 className="m-0 text-[28px] font-bold break-words">#{clean}</h1>
         <p className="mt-1 mb-0 text-sm text-dim">
           {rows === null
             ? 'Loading…'
@@ -927,7 +939,7 @@ function TagPage({ tag, version }: { tag: string; version: number }) {
       ) : rows.length === 0 ? (
         <div className={`${panel} px-6 py-12 text-center`}>
           <p className="m-0 text-[15px] font-semibold">No reviews yet</p>
-          <p className="mt-2 mb-0 text-sm text-dim">Nobody has tagged #{clean} yet.</p>
+          <p className="mt-2 mb-0 text-sm break-words text-dim">Nobody has tagged #{clean} yet.</p>
         </div>
       ) : (
         <div className={`${panel} px-5 py-3`}>
@@ -1002,7 +1014,9 @@ function ActivityFeed({
             className="flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
           >
             <span className="min-w-0 text-sm sm:flex-1">
-              <span className="block truncate">
+              {/* Wraps on phones: truncated to one line the sentence always lost
+                  its tail — the category, which is the link out of the feed. */}
+              <span className="block break-words sm:truncate">
                 <UserLink
                   username={a.profiles?.username ?? null}
                   className="font-bold"
@@ -1017,7 +1031,7 @@ function ActivityFeed({
                 )}
               </span>
               {a.review && (
-                <span className="mt-0.5 block truncate text-xs text-dim italic" title={a.review}>
+                <span className={reviewLine} title={a.review}>
                   "<ReviewText text={a.review} />"
                 </span>
               )}

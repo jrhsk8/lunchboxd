@@ -5,6 +5,15 @@ import { setHearted, type Ranking } from './data';
 export const panel = 'rounded-(--radius-card) border border-edge bg-panel shadow-(--shadow-hard)';
 export const kicker = 'text-[11px] font-semibold tracking-[0.16em] uppercase text-clay';
 
+/**
+ * The one-line italic review quote under a feed headline. Desktop keeps the
+ * single ellipsised line (the full text is in the `title` tooltip); phones get
+ * three lines instead, because a touch device never sees that tooltip and one
+ * line at 320px is a dozen words.
+ */
+export const reviewLine =
+  'mt-0.5 line-clamp-3 text-xs text-dim italic sm:block sm:overflow-hidden sm:text-ellipsis sm:whitespace-nowrap';
+
 export function scoreTone(avg: number) {
   if (avg >= 4) return 'text-good';
   if (avg < 2.5) return 'text-bad';
