@@ -14,6 +14,9 @@ import {
   type Ranking,
 } from './data';
 import { ProfilePage } from './Profile';
+// Aliased: `version` inside Site is useBoard's refresh counter, which would
+// otherwise shadow this and put the poll count in the footer.
+import { releases, version as siteVersion } from './releases';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
 import {
@@ -71,6 +74,7 @@ function Site() {
   const [tab, setTab] = useState<'categories' | 'activity'>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   const routeKey =
     route.page === 'profile'
@@ -250,7 +254,9 @@ function Site() {
         </>
       )}
 
-      <footer className="mt-10 flex items-center justify-center gap-4 pb-2">
+      {/* Wraps on phones: three items at 320px otherwise push the footer wider
+          than the viewport. */}
+      <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-2">
         <span className="text-xs text-faint">
           Lunchboxd — like Letterboxd, but you can eat the subject matter.
         </span>
@@ -261,9 +267,18 @@ function Site() {
         >
           Terms of service
         </button>
+        <button
+          type="button"
+          className="cursor-pointer border-0 bg-transparent p-0 text-xs tabular-nums text-faint underline hover:text-dim"
+          title="What's new"
+          onClick={() => setShowWhatsNew(true)}
+        >
+          v{siteVersion}
+        </button>
       </footer>
 
       {showTerms && <Terms onClose={() => setShowTerms(false)} />}
+      {showWhatsNew && <WhatsNew onClose={() => setShowWhatsNew(false)} />}
     </div>
   );
 }
@@ -310,6 +325,58 @@ function Terms({ onClose }: { onClose: () => void }) {
             Scores are a matter of taste. If the crowd says gas station sushi is a 4.5, the crowd
             has spoken.
           </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Version history, newest first. A dialog rather than a route: it's a footnote
+ * about the site, not a place you navigate to or link someone at.
+ */
+function WhatsNew({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-label="what's new"
+        className={`${panel} max-h-[85vh] w-full max-w-lg overflow-y-auto p-6`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <p className={`${kicker} m-0`}>What&rsquo;s new</p>
+          <button
+            type="button"
+            aria-label="close"
+            className="cursor-pointer border-0 bg-transparent p-1 text-sm text-faint hover:text-ink"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex flex-col gap-5">
+          {releases.map((release) => (
+            <section key={release.version} className="flex flex-col gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-bold tabular-nums text-ink">v{release.version}</span>
+                <span className="text-xs tabular-nums text-faint">{release.date}</span>
+              </div>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {release.notes.map((note) => (
+                  <li
+                    key={note}
+                    className="border-l-2 border-edge pl-3 text-sm leading-relaxed text-dim"
+                  >
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
         </div>
       </div>
     </div>

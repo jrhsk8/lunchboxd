@@ -2,6 +2,10 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-24 — Version history is a footer dialog, not a changelog page
+
+Owner-asked for "versioning and version history on the site", then ruled the scope: **website updates, no changelog page.** So the site carries a semver it shows in the footer (`v0.4.0`) and the history opens as a dialog from that button, mirroring the existing Terms-of-service idiom — no `#/changelog` route, nothing to deep-link. Source of truth is `src/releases.ts`, newest first; `package.json`'s version is bumped by hand to match. Notes are user-facing copy under voice.md and cover only what someone using the site would notice — docs, deploy plumbing and refactors stay out. Retroactive 0.1.0–0.4.0 entries were reconstructed from git history. Component and the import-aliasing trap: docs/app/app-shell.md.
+
 ### 2026-07-24 — The gambdle.net redirect stub is Gambdle's file; it must carry the query string
 
 Found from a user report ("I lost my handle, the email stuff didn't work"): the stub that forwards `gambdle.net/lunchboxd/` to lunchboxd.live forwarded `location.hash` only. Supabase auth links use supabase-js v2's default **PKCE** flow, so the token comes back as `?code=` in the **query string** — and those links land on the old URL every time GoTrue falls back to the Site URL, which is permanently Gambdle's. The stub dropped the code and delivered people to lunchboxd.live signed out. Fixed to forward `location.search + location.hash` (Gambdle `ba50c75`).

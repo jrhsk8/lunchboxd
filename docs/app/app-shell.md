@@ -15,12 +15,13 @@ Hash routing is a deliberate choice, not a shortcut: the site is a static build 
 
 ## Component map
 
-- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (score + optional review text), `CategoryBoard`/`CategoryDetail`, `CategoryPage`, `TagPage`, `RankingRows` (the row list shared by panel and page), `CategoryAdminTools` (admin rename / merge-into, in both the panel and the page), `ActivityFeed`, `Terms`. Feed rows show a ranking's review as a one-line italic quote under the headline (full text in the `title` tooltip), with `#hashtags` linkified via `ReviewText`.
+- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (score + optional review text), `CategoryBoard`/`CategoryDetail`, `CategoryPage`, `TagPage`, `RankingRows` (the row list shared by panel and page), `CategoryAdminTools` (admin rename / merge-into, in both the panel and the page), `ActivityFeed`, `Terms`, `WhatsNew`. Feed rows show a ranking's review as a one-line italic quote under the headline (full text in the `title` tooltip), with `#hashtags` linkified via `ReviewText`.
 - `Profile.tsx` — `ProfilePage` (stats + history; own-view gets edit controls).
 - `auth.tsx` — `useAuth`, `SignInCard` (guest-first), `KeepAccount`.
 - `Stars.tsx` — `Stars` (fractional display), `StarInput` (half-star hit zones).
 - `ui.tsx` — shared: `panel`/`kicker` class strings, `scoreTone`, `timeAgo`, `useRoute` + the `*Href` builders, `UserLink`/`CategoryLink`, `ReviewText` (hashtag linkifier), `Tag`/`profileTags`, `Heart`.
 - `data.ts` — all Supabase reads/writes; components never touch the client directly except auth flows.
+- `releases.ts` — the version history: a newest-first list of releases, and `version` (= `releases[0].version`), which the footer shows. Shipping a release means adding an entry at the top **and** bumping `package.json` to match; neither derives from the other. **Import it aliased** (`version as siteVersion`) — inside `Site`, `version` is `useBoard`'s refresh counter, and the unaliased import is shadowed by it, which silently puts the poll count in the footer instead of the release number. `tsc` catches this only as an unused import.
 
 ## Design language
 
