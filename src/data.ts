@@ -18,7 +18,7 @@ export type Ranking = {
   created_at: string;
   user_id: string;
   profiles: { username: string } | null;
-  likes: { user_id: string }[];
+  hearted: boolean;
 };
 
 export type Activity = Ranking & { categories: { name: string } | null };
@@ -43,10 +43,8 @@ export function useBoard() {
       supabase.from('category_stats').select('*'),
       supabase
         .from('rankings')
-        // profiles must name its FK: likes creates a second rankings<->profiles
-        // path, which makes a bare profiles() embed ambiguous (PGRST201).
         .select(
-          'id, food, score, created_at, user_id, profiles!rankings_user_id_fkey(username), categories(name), likes(user_id)',
+          'id, food, score, created_at, user_id, hearted, profiles(username), categories(name)',
         )
         .order('created_at', { ascending: false })
         .limit(30),
@@ -103,7 +101,7 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
     let alive = true;
     supabase
       .from('rankings')
-      .select('id, food, score, created_at, user_id, profiles!rankings_user_id_fkey(username), likes(user_id)')
+      .select('id, food, score, created_at, user_id, hearted, profiles(username)')
       .eq('category_id', categoryId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -125,6 +123,7 @@ export async function rankFood(opts: {
   categoryName?: string;
   food: string;
   score: number;
+  hearted: boolean;
 }): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
 
@@ -166,18 +165,15 @@ export async function rankFood(opts: {
     user_id: opts.userId,
     food: opts.food.trim(),
     score: opts.score,
+    hearted: opts.hearted,
   });
   return error ? { error: error.message } : {};
 }
 
-/** Give or take back a heart on someone's ranking. */
-export async function toggleLike(rankingId: string, userId: string, liked: boolean): Promise<void> {
+/** Flip the heart on one of your own rankings. */
+export async function setHearted(rankingId: string, hearted: boolean): Promise<void> {
   if (!supabase) return;
-  if (liked) {
-    await supabase.from('likes').delete().eq('ranking_id', rankingId).eq('user_id', userId);
-  } else {
-    await supabase.from('likes').insert({ ranking_id: rankingId, user_id: userId });
-  }
+  await supabase.from('rankings').update({ hearted }).eq('id', rankingId);
 }
 
 export async function deleteRanking(id: string): Promise<void> {

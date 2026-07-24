@@ -4,7 +4,7 @@ import { KeepAccount, SignInCard, useAuth } from './auth';
 import {
   deleteRanking,
   rankFood,
-  toggleLike,
+  setHearted,
   useBoard,
   useCategoryRankings,
   type CategoryStat,
@@ -243,6 +243,7 @@ function RankForm({
   const [newCategory, setNewCategory] = useState('');
   const [food, setFood] = useState('');
   const [score, setScore] = useState(0);
+  const [loved, setLoved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -260,6 +261,7 @@ function RankForm({
       categoryName: creatingNew ? newCategory : undefined,
       food,
       score,
+      hearted: loved,
     });
     setBusy(false);
     if (result.error) {
@@ -268,6 +270,7 @@ function RankForm({
     }
     setFood('');
     setScore(0);
+    setLoved(false);
     setNewCategory('');
     onLogged();
   }
@@ -319,7 +322,23 @@ function RankForm({
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Score</span>
-        <StarInput value={score} onChange={setScore} />
+        <div className="flex items-center justify-between gap-3">
+          <StarInput value={score} onChange={setScore} />
+          <button
+            type="button"
+            aria-pressed={loved}
+            title="The Letterboxd heart: loved it, whatever the score"
+            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              loved
+                ? 'border-gold/50 bg-gold/10 text-gold'
+                : 'border-edge bg-transparent text-faint hover:border-edge-hover hover:text-gold'
+            }`}
+            onClick={() => setLoved(!loved)}
+          >
+            <span className="text-sm">{loved ? '♥' : '♡'}</span>
+            Loved it
+          </button>
+        </div>
       </div>
 
       <button type="button" className={btnPrimary} disabled={!canLog} onClick={submit}>
@@ -336,8 +355,9 @@ function RankForm({
 }
 
 /**
- * Letterboxd-style heart on a ranking: gold when you've hearted it, with the
- * total count. Signed-out visitors see counts but can't heart.
+ * The Letterboxd heart: a mark the AUTHOR puts on their own ranking ("loved
+ * it", independent of the score). Everyone sees it; only the owner can flip
+ * it. Non-owners get a plain glyph (gold when hearted, nothing otherwise).
  */
 function Heart({
   ranking,
@@ -348,27 +368,31 @@ function Heart({
   userId: string | null;
   onChanged: () => void;
 }) {
-  const liked = userId !== null && ranking.likes.some((l) => l.user_id === userId);
-  const count = ranking.likes.length;
+  const own = userId === ranking.user_id;
+  if (!own) {
+    return ranking.hearted ? (
+      <span className="px-1 text-sm text-gold" title="They loved it" aria-label="loved it">
+        ♥
+      </span>
+    ) : (
+      <span className="w-[26px]" aria-hidden />
+    );
+  }
   return (
     <button
       type="button"
-      disabled={!userId}
-      aria-label={liked ? 'remove heart' : 'heart this ranking'}
-      aria-pressed={liked}
-      className={`flex cursor-pointer items-center gap-1 rounded border-0 bg-transparent px-1 text-sm transition-transform enabled:hover:scale-115 disabled:cursor-default ${
-        liked ? 'text-gold' : 'text-faint enabled:hover:text-gold'
+      aria-label={ranking.hearted ? 'unmark loved' : 'mark as loved'}
+      aria-pressed={ranking.hearted}
+      title={ranking.hearted ? 'You loved it — click to unmark' : 'Loved it?'}
+      className={`cursor-pointer rounded border-0 bg-transparent px-1 text-sm transition-transform hover:scale-115 ${
+        ranking.hearted ? 'text-gold' : 'text-faint hover:text-gold'
       }`}
       onClick={async () => {
-        if (!userId) return;
-        await toggleLike(ranking.id, userId, liked);
+        await setHearted(ranking.id, !ranking.hearted);
         onChanged();
       }}
     >
-      {liked ? '♥' : '♡'}
-      <span className="min-w-3 text-left text-xs font-bold tabular-nums">
-        {count > 0 ? count : ''}
-      </span>
+      {ranking.hearted ? '♥' : '♡'}
     </button>
   );
 }
