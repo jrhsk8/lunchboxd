@@ -114,7 +114,7 @@ function Site() {
           </span>
         </a>
         <span className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-faint tabular-nums">
+          <span className="hidden text-xs text-faint tabular-nums sm:inline">
             {totalRankings} rankings · {stats.length} categories
           </span>
           {session && (
@@ -136,7 +136,7 @@ function Site() {
               {session.user.is_anonymous && <KeepAccount />}
               <button
                 type="button"
-                className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-ink"
+                className="cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-faint hover:text-ink"
                 onClick={() => {
                   if (
                     session.user.is_anonymous &&
@@ -754,9 +754,9 @@ function RankingRows({
       {rankings.map((r) => (
         <li
           key={r.id}
-          className="group flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-raised"
+          className="group flex flex-col gap-1 rounded-lg px-2 py-1.5 hover:bg-raised sm:flex-row sm:items-center sm:gap-3"
         >
-          <span className="min-w-0 flex-1 text-sm">
+          <span className="min-w-0 text-sm sm:flex-1">
             <span className="block truncate">
               {r.food}
               <span className="ml-2 text-xs text-faint">
@@ -770,29 +770,31 @@ function RankingRows({
               </span>
             )}
           </span>
-          <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
-            {timeAgo(r.created_at)}
+          <span className="flex items-center gap-3 sm:contents">
+            <span className="w-14 shrink-0 text-left text-xs text-faint tabular-nums sm:text-right">
+              {timeAgo(r.created_at)}
+            </span>
+            <Stars value={Number(r.score)} size={13} />
+            <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums">
+              {Number(r.score).toFixed(1)}
+            </span>
+            <Heart ranking={r} userId={userId} onChanged={onChanged} />
+            {userId === r.user_id ? (
+              <button
+                type="button"
+                className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-100 transition-opacity hover:text-bad sm:opacity-0 sm:group-hover:opacity-100"
+                aria-label={`delete ${r.food}`}
+                onClick={async () => {
+                  await deleteRanking(r.id);
+                  onChanged();
+                }}
+              >
+                ✕
+              </button>
+            ) : (
+              <span className="w-[22px] shrink-0" aria-hidden />
+            )}
           </span>
-          <Stars value={Number(r.score)} size={13} />
-          <span className="w-8 text-right text-sm font-bold tabular-nums">
-            {Number(r.score).toFixed(1)}
-          </span>
-          <Heart ranking={r} userId={userId} onChanged={onChanged} />
-          {userId === r.user_id ? (
-            <button
-              type="button"
-              className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-bad"
-              aria-label={`delete ${r.food}`}
-              onClick={async () => {
-                await deleteRanking(r.id);
-                onChanged();
-              }}
-            >
-              ✕
-            </button>
-          ) : (
-            <span className="w-[22px] shrink-0" aria-hidden />
-          )}
         </li>
       ))}
     </ul>
@@ -920,9 +922,9 @@ function ActivityFeed({
         {activity.map((a) => (
           <li
             key={a.id}
-            className="flex items-center gap-3 border-b border-edge py-3 last:border-b-0"
+            className="flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
           >
-            <span className="min-w-0 flex-1 text-sm">
+            <span className="min-w-0 text-sm sm:flex-1">
               <span className="block truncate">
                 <UserLink
                   username={a.profiles?.username ?? null}
@@ -943,14 +945,16 @@ function ActivityFeed({
                 </span>
               )}
             </span>
-            <span className="w-14 shrink-0 text-right text-xs text-faint tabular-nums">
-              {timeAgo(a.created_at)}
+            <span className="flex items-center gap-3 sm:contents">
+              <span className="w-14 shrink-0 text-left text-xs text-faint tabular-nums sm:text-right">
+                {timeAgo(a.created_at)}
+              </span>
+              <Stars value={Number(a.score)} size={13} />
+              <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums">
+                {Number(a.score).toFixed(1)}
+              </span>
+              <Heart ranking={a} userId={userId} onChanged={onChanged} />
             </span>
-            <Stars value={Number(a.score)} size={13} />
-            <span className="w-8 text-right text-sm font-bold tabular-nums">
-              {Number(a.score).toFixed(1)}
-            </span>
-            <Heart ranking={a} userId={userId} onChanged={onChanged} />
           </li>
         ))}
       </ul>

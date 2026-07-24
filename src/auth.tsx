@@ -90,7 +90,7 @@ export function KeepAccount() {
         {!status && (
           <button
             type="button"
-            className="cursor-pointer border-0 bg-transparent p-0 text-xs text-clay hover:text-clay-hover"
+            className="cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-clay hover:text-clay-hover"
             title="Attach an email so this guest account can be recovered with a magic link"
             onClick={() => setOpen(true)}
           >

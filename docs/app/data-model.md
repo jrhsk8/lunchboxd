@@ -19,11 +19,11 @@ The Postgres schema, the RLS matrix, and how the client keeps its views fresh. S
 
 ## RLS matrix
 
-| Table | select | insert | update | delete |
-|---|---|---|---|---|
-| profiles | everyone | trigger only | own row, `username`+`tags` columns only | — |
-| categories | everyone | own (`created_by = uid`), not banned | — | ban function only |
-| rankings | everyone | own, not banned | own, `hearted` column only | own, or ban function |
+| Table      | select   | insert                               | update                                  | delete               |
+| ---------- | -------- | ------------------------------------ | --------------------------------------- | -------------------- |
+| profiles   | everyone | trigger only                         | own row, `username`+`tags` columns only | —                    |
+| categories | everyone | own (`created_by = uid`), not banned | —                                       | ban function only    |
+| rankings   | everyone | own, not banned                      | own, `hearted` column only              | own, or ban function |
 
 Grants are explicit per table (nothing is granted by default in a custom schema); RLS narrows on top.
 
