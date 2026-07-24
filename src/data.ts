@@ -240,6 +240,26 @@ export async function deleteRanking(id: string): Promise<void> {
   await supabase.from('rankings').delete().eq('id', id);
 }
 
+/**
+ * Change your own handle (RLS restricts the update to your row). The old
+ * handle is released for anyone to claim; a collision here is a plain unique
+ * violation — the signup trigger's name-2 fallback doesn't apply to renames.
+ */
+export async function renameProfile(userId: string, username: string): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const name = username.trim();
+  const { error } = await supabase.from('profiles').update({ username: name }).eq('id', userId);
+  if (!error) return {};
+  return {
+    error:
+      error.code === '23505'
+        ? `"${name}" is already claimed — even signed-out guests keep their handles.`
+        : error.code === '23514'
+          ? 'Handles run 2 to 24 characters.'
+          : error.message,
+  };
+}
+
 /** Replace your own flair tags (server enforces the allowed roster). */
 export async function setProfileTags(userId: string, tags: string[]): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };

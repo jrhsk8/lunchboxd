@@ -47,7 +47,7 @@ function SetupNotice() {
 }
 
 function Site() {
-  const { session, username, isAdmin } = useAuth();
+  const { session, username, isAdmin, refreshProfile } = useAuth();
   const { stats, activity, loaded, version, refresh } = useBoard();
   const route = useRoute();
   const [tab, setTab] = useState<'categories' | 'activity'>('categories');
@@ -143,6 +143,10 @@ function Site() {
           userId={session?.user.id ?? null}
           viewerIsAdmin={isAdmin}
           onChanged={refresh}
+          onRenamed={() => {
+            refresh();
+            refreshProfile();
+          }}
         />
       ) : (
         <>

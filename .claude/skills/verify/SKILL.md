@@ -20,6 +20,7 @@ description: Build, run, and drive Lunchboxd locally to verify changes end-to-en
   ```
   `--ignore-health-check` matters: if the `lunchboxd` schema is missing (config exposes it but migrations unapplied), plain `start` 503s and stops the containers — chicken-and-egg with `db reset`.
 - Writes to this DB are fine (guest signups, rankings). It's throwaway dev data; `db reset` wipes it.
+- **The WSL VM idles out between commands** and takes its networking with it — from Windows the stack times out, then 503s while containers restart on the next `wsl` invocation. Hold the VM open for the whole verification with a background `wsl -e bash -c "sleep 900"`, then poll `/auth/v1/health` until 200 before driving.
 
 ## Frontend
 
@@ -32,5 +33,6 @@ Python Playwright is installed (Windows, `playwright` on PATH via Python 3.12) w
 
 - Set `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` — the app's output has ♥/★ glyphs that crash cp1252 prints.
 - Guest handles are claimed forever; use a unique handle per run (`f"verify_hank{int(time.time()) % 10000}"`).
+- Click buttons via `page.get_by_role("button", name=...)`, never `text=` — `text=` is a case-insensitive substring match and the sign-in card's copy ("Pick a handle to start ranking.") sits before the "Start ranking" button in the DOM, so `text=Start ranking` silently clicks the paragraph.
 - Useful flows: guest signup (fill `input[placeholder='hotdog_hank']`, click "Start ranking"), rank a food (category name input placeholder contains "Gas Station Sushi", food input "Costco slice", star input via `[role=radio][aria-label='4.5 stars']`), profile pages at `#/u/<handle>` (hash routing).
 - Collect `page.on("pageerror", ...)` and assert none at the end.

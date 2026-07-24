@@ -1,8 +1,18 @@
 import { useState } from 'react';
 
-import { banProfile, deleteRanking, setProfileTags, useProfile } from './data';
+import { banProfile, deleteRanking, renameProfile, setProfileTags, useProfile } from './data';
 import { Stars } from './Stars';
-import { Heart, kicker, panel, profileTags, scoreTone, SELF_TAGS, Tag, timeAgo } from './ui';
+import {
+  Heart,
+  kicker,
+  panel,
+  profileHref,
+  profileTags,
+  scoreTone,
+  SELF_TAGS,
+  Tag,
+  timeAgo,
+} from './ui';
 
 function Stat({
   label,
@@ -70,6 +80,97 @@ function TagPicker({
   );
 }
 
+/**
+ * Inline rename on your own profile — the escape hatch for anyone stuck with
+ * a generated eater-* handle. On success the page routes to the new handle
+ * and `onRenamed` refreshes the cached header name.
+ */
+function RenameControl({
+  userId,
+  current,
+  onRenamed,
+}: {
+  userId: string;
+  current: string;
+  onRenamed: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(current);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    const next = name.trim();
+    if (busy || next.length < 2) return;
+    if (next === current) {
+      setEditing(false);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await renameProfile(userId, next);
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setEditing(false);
+    onRenamed();
+    window.location.hash = profileHref(next).slice(1);
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        title="Pick a new handle (the old one is released for anyone to claim)"
+        aria-label="change handle"
+        className="cursor-pointer rounded-lg border-0 bg-transparent p-1 text-sm text-faint transition-colors hover:text-clay"
+        onClick={() => {
+          setName(current);
+          setError(null);
+          setEditing(true);
+        }}
+      >
+        ✎
+      </button>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <input
+        className="rounded-lg border border-edge bg-field px-2 py-1 text-sm font-normal text-ink placeholder:text-faint focus:border-clay focus:outline-none"
+        placeholder="hotdog_hank"
+        maxLength={24}
+        value={name}
+        autoFocus
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') save();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+      />
+      <button
+        type="button"
+        className="cursor-pointer rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-semibold text-ink hover:bg-raised-hover disabled:opacity-40"
+        disabled={busy || name.trim().length < 2}
+        onClick={save}
+      >
+        {busy ? 'Saving…' : 'Save'}
+      </button>
+      <button
+        type="button"
+        className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-ink"
+        onClick={() => setEditing(false)}
+      >
+        Cancel
+      </button>
+      {error && <span className="max-w-64 text-xs font-normal text-bad">{error}</span>}
+    </span>
+  );
+}
+
 /** The admin ban hammer: destructive and loud about it. */
 function BanButton({
   targetId,
@@ -118,12 +219,14 @@ export function ProfilePage({
   userId,
   viewerIsAdmin,
   onChanged,
+  onRenamed,
 }: {
   username: string;
   version: number;
   userId: string | null;
   viewerIsAdmin: boolean;
   onChanged: () => void;
+  onRenamed: () => void;
 }) {
   const { profile, rankings } = useProfile(username, version);
 
@@ -169,6 +272,9 @@ export function ProfilePage({
               </span>
             )}
             {!banned && profileTags(profile).map((t) => <Tag key={t} kind={t} size={12} />)}
+            {own && !banned && (
+              <RenameControl userId={profile.id} current={profile.username} onRenamed={onRenamed} />
+            )}
           </h1>
           <p className="mt-1 mb-0 text-sm text-dim">Eating since {since}</p>
         </div>

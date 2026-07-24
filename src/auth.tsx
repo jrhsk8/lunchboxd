@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from './supabase';
 
@@ -7,6 +7,9 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Bumped after a rename so the header handle doesn't go stale.
+  const [profileVersion, setProfileVersion] = useState(0);
+  const refreshProfile = useCallback(() => setProfileVersion((v) => v + 1), []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -46,9 +49,9 @@ export function useAuth() {
     return () => {
       alive = false;
     };
-  }, [session]);
+  }, [session, profileVersion]);
 
-  return { session, username, isAdmin };
+  return { session, username, isAdmin, refreshProfile };
 }
 
 const input =
