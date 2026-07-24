@@ -24,6 +24,8 @@ Hash routing is a deliberate choice, not a shortcut: the site is a static folder
 
 Lifted from Maxout's v2 editorial dark skin; tokens live in `src/index.css` `@theme` (Tailwind v4).
 
+- **Brand:** the lunchbox-with-star mark. Assets and the lockup/sizing/don'ts spec live in `public/brand/` (README.md there is authoritative). The header renders the on-dark mark inline in App.tsx; the favicon is the clay-tile version.
+
 - **Ground:** warm near-black (`bg`), panels on `panel` with `--radius-card` and the hard drop shadow. Panels use the shared `panel` class string from ui.tsx — don't re-derive it.
 - **Accent:** clay (`clay`/`clay-hover`) for kickers, links, and primary buttons; gold for stars and hearts; `good`/`bad` for score tones via `scoreTone` (≥4 good, <2.5 bad).
 - **Type:** single typeface (Schibsted Grotesk). Section headers are uppercase tracking-wide "kickers" (the shared `kicker` class). Numbers are `tabular-nums`.

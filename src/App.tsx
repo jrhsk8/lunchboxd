@@ -54,13 +54,34 @@ function Site() {
   return (
     <div className="mx-auto max-w-[1140px] p-[clamp(16px,4vw,40px)]">
       <header className="mb-8 flex flex-wrap items-center gap-3 rounded-(--radius-card) border border-edge bg-topbar px-4 py-2.5">
-        <a href="#/" className="flex items-center gap-3" title="Back to the board">
-          <span className="flex items-end gap-[3px]" aria-hidden>
-            <i className="h-[9px] w-1.5 bg-ink" />
-            <i className="h-[15px] w-1.5 bg-gold" />
-            <i className="h-[22px] w-1.5 bg-clay" />
+        {/* Brand lockup per public/brand/README.md: 24px on-dark mark, 17px/800
+            lowercase wordmark with the clay "d", gap 0.4x the icon width. */}
+        <a href="#/" className="flex items-center gap-2.5" title="Back to the board">
+          <svg viewBox="0 0 48 48" className="h-6 w-6" aria-hidden>
+            <rect
+              x="4"
+              y="19"
+              width="40"
+              height="23"
+              rx="4"
+              fill="none"
+              stroke="#fcfcfc"
+              strokeWidth="3.5"
+            />
+            <path
+              d="M16 19 v-3.5 a3.5 3.5 0 0 1 3.5 -3.5 h9 a3.5 3.5 0 0 1 3.5 3.5 v3.5"
+              fill="none"
+              stroke="#fcfcfc"
+              strokeWidth="3.5"
+            />
+            <path
+              d="M24 24 l2 4 4.4 .6 -3.2 3.1 .8 4.3 -4 -2.1 -4 2.1 .8 -4.3 -3.2 -3.1 4.4 -.6 z"
+              fill="#fca044"
+            />
+          </svg>
+          <span className="text-[17px] font-extrabold tracking-[-0.02em]">
+            lunchbox<span className="text-clay">d</span>
           </span>
-          <span className="text-base font-bold tracking-tight">Lunchboxd</span>
         </a>
         <span className="ml-auto flex items-center gap-3">
           <span className="text-xs text-faint tabular-nums">
