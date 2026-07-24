@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { SignInCard, useAuth } from './auth';
+import { KeepAccount, SignInCard, useAuth } from './auth';
 import {
   deleteRanking,
   rankFood,
@@ -85,10 +85,21 @@ function Site() {
               <span className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold">
                 {username ?? '…'}
               </span>
+              {session.user.is_anonymous && <KeepAccount />}
               <button
                 type="button"
                 className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-ink"
-                onClick={() => supabase!.auth.signOut()}
+                onClick={() => {
+                  if (
+                    session.user.is_anonymous &&
+                    !window.confirm(
+                      `Guest accounts can't be recovered: sign out and ${username ? `"${username}"` : 'your handle'} is gone for good (your rankings stay up). Use "Keep account" first to attach an email. Sign out anyway?`,
+                    )
+                  ) {
+                    return;
+                  }
+                  supabase!.auth.signOut();
+                }}
               >
                 Sign out
               </button>
