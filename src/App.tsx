@@ -54,12 +54,14 @@ function Site() {
   return (
     <div className="mx-auto max-w-[1140px] p-[clamp(16px,4vw,40px)]">
       <header className="mb-8 flex flex-wrap items-center gap-3 rounded-(--radius-card) border border-edge bg-topbar px-4 py-2.5">
-        <span className="flex items-end gap-[3px]" aria-hidden>
-          <i className="h-[9px] w-1.5 bg-ink" />
-          <i className="h-[15px] w-1.5 bg-gold" />
-          <i className="h-[22px] w-1.5 bg-clay" />
-        </span>
-        <span className="text-base font-bold tracking-tight">Lunchboxd</span>
+        <a href="#/" className="flex items-center gap-3" title="Back to the board">
+          <span className="flex items-end gap-[3px]" aria-hidden>
+            <i className="h-[9px] w-1.5 bg-ink" />
+            <i className="h-[15px] w-1.5 bg-gold" />
+            <i className="h-[22px] w-1.5 bg-clay" />
+          </span>
+          <span className="text-base font-bold tracking-tight">Lunchboxd</span>
+        </a>
         <span className="ml-auto flex items-center gap-3">
           <span className="text-xs text-faint tabular-nums">
             {totalRankings} rankings · {stats.length} categories
