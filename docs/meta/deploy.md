@@ -13,6 +13,8 @@ npm run build
 npx wrangler pages deploy dist --project-name lunchboxd
 ```
 
+**Node version gotcha (as of 2026-07-24):** this box runs Node v20.13.1 and wrangler isn't a project dependency, so `npx wrangler` fetches the latest, which hard-requires Node ≥ 22 and refuses to start. Either upgrade Node, or pin a version that still supports Node 20: `npx wrangler@3 pages deploy dist --project-name lunchboxd`.
+
 Confirm the new asset hash appears in the live page source. Routing is hash-based, so no SPA-fallback / `_redirects` config is needed — every path is served from the root `index.html`.
 
 One-time setup, completed 2026-07-24 (redo only if rebuilt): the `lunchboxd` Pages project exists in the Cloudflare account; `lunchboxd.live` is a Cloudflare zone (nameservers moved off Squarespace) with the apex and `www` added as the project's custom domains. The apex is a proxied `CNAME` to `lunchboxd.pages.dev` — Cloudflare CNAME-flattens it and provisions TLS.
