@@ -10,9 +10,9 @@ Users reported never receiving magic-link/confirmation emails. Three stacked cau
 
 Owner-asked: admins (hand-granted in SQL, no UI) get a badge and can ban from a profile page. Ban semantics owner-specified: "that removes all their categories and reviews" — so `ban_profile` deletes the target's rankings AND their invented categories, cascading away everyone else's rankings inside those categories. Deliberate collateral: a spammer's junk namespace disappears whole. No unban button. First admin: jrhsk8.
 
-### 2026-07-23 — Self-service profile tags: Peloton (brand red) and Zwift (ugly on purpose)
+### 2026-07-23 — Self-service profile tags: Peloton (blue) or Zwift (ugly on purpose), never both
 
-Owner-asked, for the Peloton-themed Discord crowd: profiles get Discord-flair-style self-picked tags from a fixed roster. Peloton wears the brand red; Zwift wears a murky chartreuse because the owner ruled "make the zwift one an ugly color" — do not tasteful-ify it. Profile editing means exactly this tag picking (no handle rename UI). Roster changes = migration (check constraint) + `SELF_TAGS`/`TAG_STYLES` in ui.tsx.
+Owner-asked, for the Peloton-themed Discord crowd: profiles get Discord-flair-style self-picked tags from a fixed roster. Flair is either/or (owner-ruled same day: "must be peloton or zwift but not both") — enforced by the `profiles_tags_single` check, and the picker swaps instead of stacking. Colors owner-ruled: Admin red, Peloton blue (revised from the initial brand red), Zwift a murky chartreuse because "make the zwift one an ugly color" — do not tasteful-ify it. Profile editing means exactly this tag picking (no handle rename UI). Roster changes = migration (check constraint) + `SELF_TAGS`/`TAG_STYLES` in ui.tsx. Second admin granted same day: bamba.
 
 ### 2026-07-23 — Docs structure mirrors the Maxout project
 

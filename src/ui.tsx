@@ -59,7 +59,7 @@ export type TagKind = 'admin' | 'peloton' | 'zwift';
 export const SELF_TAGS: readonly TagKind[] = ['peloton', 'zwift'];
 
 const TAG_STYLES: Record<TagKind, { label: string; tone: string }> = {
-  admin: { label: 'Admin', tone: 'text-gold' },
+  admin: { label: 'Admin', tone: 'text-admin' },
   peloton: { label: 'Peloton', tone: 'text-peloton' },
   zwift: { label: 'Zwift', tone: 'text-zwift' },
 };

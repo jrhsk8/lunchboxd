@@ -38,7 +38,8 @@ function TagPicker({
   async function toggle(tag: string) {
     if (busy) return;
     setBusy(true);
-    const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
+    // Flair is either/or (DB-enforced): picking one replaces the other.
+    const next = current.includes(tag) ? [] : [tag];
     await setProfileTags(userId, next);
     setBusy(false);
     onChanged();
