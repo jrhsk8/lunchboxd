@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1a1815" />
+    <title>Lunchboxd has moved</title>
+    <style>
+      html {
+        background: #1a1815;
+        color: #f4efe6;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+      a {
+        color: #f4efe6;
+      }
+    </style>
+    <!--
+      This folder used to serve the Lunchboxd app at gambdle.net/lunchboxd/.
+      The app now lives at its own domain; this stub forwards old links,
+      carrying the hash so deep links (#/c/<name>, #/u/<handle>) survive.
+    -->
+    <script>
+      location.replace('https://lunchboxd.live/' + location.hash);
+    </script>
+    <meta http-equiv="refresh" content="0;url=https://lunchboxd.live/" />
+  </head>
+  <body>
+    <p>
+      Lunchboxd has moved to
+      <a href="https://lunchboxd.live/">lunchboxd.live</a>.
+    </p>
+  </body>
+</html>

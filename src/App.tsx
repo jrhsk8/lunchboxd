@@ -763,12 +763,14 @@ function RankingRows({
           className="group flex flex-col gap-1 rounded-lg px-2 py-1.5 hover:bg-raised sm:flex-row sm:items-center sm:gap-3"
         >
           <span className="min-w-0 text-sm sm:flex-1">
-            <span className="block truncate">
-              {r.food}
-              <span className="ml-2 text-xs text-faint">
+            {/* Username gets full display (never truncates); the food shortens
+                to fill the rest, so the left column reads as who ranked. */}
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="shrink-0 font-medium">
                 <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
                 {userId === r.user_id && ' (you)'}
               </span>
+              <span className="min-w-0 truncate text-xs text-faint">{r.food}</span>
             </span>
             {r.review && (
               <span className="mt-0.5 block truncate text-xs text-dim italic" title={r.review}>

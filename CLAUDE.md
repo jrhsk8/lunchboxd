@@ -25,6 +25,6 @@ This file is a router: the doc map, the hard rules, and the commands. Detail liv
 
 ## Commands
 
-- `npm run dev` — dev server at http://localhost:5173/lunchboxd/ (note the base path)
+- `npm run dev` — dev server at http://localhost:5173/ (root base path)
 - `npm run build` — typecheck + production build
 - Verification: the [verify skill](.claude/skills/verify/SKILL.md) has the end-to-end drive recipe (Playwright + gotchas)

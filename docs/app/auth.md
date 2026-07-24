@@ -19,7 +19,7 @@ Both are real Supabase Auth sessions with a genuine `auth.uid()`:
 
 ## The email-redirect rule
 
-The Supabase project's Site URL belongs to Gambdle (`gambdle.net`), not to Lunchboxd. **Every auth call that sends an email must pass `emailRedirectTo: window.location.origin + import.meta.env.BASE_URL`** or the emailed link strands the user on the Gambdle homepage. This applies to `signInWithOtp` AND `updateUser({ email })` (the second one was missed once; fixed 2026-07-23). `https://gambdle.net/lunchboxd/` is on the hosted project's redirect allow-list.
+The Supabase project's Site URL belongs to Gambdle (`gambdle.net`), not to Lunchboxd — it's the shared project's single global value and can't be changed without breaking Gambdle, even though Lunchboxd now has its own domain. **Every auth call that sends an email must pass `emailRedirectTo: window.location.origin + import.meta.env.BASE_URL`** or the emailed link strands the user on the Gambdle homepage. This applies to `signInWithOtp` AND `updateUser({ email })` (the second one was missed once; fixed 2026-07-23). With `base: '/'` this resolves to `https://lunchboxd.live/`, which is on the hosted project's redirect allow-list.
 
 ## Sign-out warning
 

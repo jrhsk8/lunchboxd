@@ -24,7 +24,7 @@ description: Build, run, and drive Lunchboxd locally to verify changes end-to-en
 
 ## Frontend
 
-- `npm run dev` (background) → http://localhost:5173/lunchboxd/ (note the base path).
+- `npm run dev` (background) → http://localhost:5173/ (root base path).
 - Build check: `npx tsc -b && npx vite build`. Format: `npx prettier --write src`.
 
 ## Driving it

@@ -29,4 +29,4 @@ Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` / `VITE_SUPA
 
 ## Docs
 
-[CLAUDE.md](CLAUDE.md) is the router: a read-when table over the `docs/` tree (data model, auth, app shell, copy voice, decisions log, deploy). Production runs at <https://gambdle.net/lunchboxd/>; the deploy procedure and hosted-Supabase config live in [docs/meta/deploy.md](docs/meta/deploy.md).
+[CLAUDE.md](CLAUDE.md) is the router: a read-when table over the `docs/` tree (data model, auth, app shell, copy voice, decisions log, deploy). Production runs at <https://lunchboxd.live/>; the deploy procedure and hosted-Supabase config live in [docs/meta/deploy.md](docs/meta/deploy.md).

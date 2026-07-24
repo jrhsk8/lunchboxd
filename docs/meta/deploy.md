@@ -1,20 +1,31 @@
-# Deploy — static folder on Gambdle's GitHub Pages + shared hosted Supabase
+# Deploy — Cloudflare Pages on lunchboxd.live + shared hosted Supabase
 
-Live at <https://gambdle.net/lunchboxd/>. Two halves: a static frontend served as a folder of the Gambdle GitHub Pages repo, and a backend riding in Gambdle's hosted Supabase project, isolated in the `lunchboxd` schema. Deploy is a deliberate manual step, never automated on push.
+Live at <https://lunchboxd.live/>. Two halves: a static frontend on Cloudflare Pages (its own apex domain), and a backend riding in Gambdle's hosted Supabase project, isolated in the `lunchboxd` schema. Deploy is a deliberate manual step, never automated on push. The old `gambdle.net/lunchboxd/` URL now serves a redirect stub (below).
 
-## Frontend
+## Frontend (Cloudflare Pages, project `lunchboxd`)
 
-`.env.production` (committed; the anon key is public by design) supplies the hosted credentials and takes priority over `.env.local` in production builds. `vite.config.ts` sets `base: '/lunchboxd/'`.
+`.env.production` (committed; the anon key is public by design) supplies the hosted credentials and takes priority over `.env.local` in production builds. `vite.config.ts` sets `base: '/'` — the app serves from the domain root, so the BASE_URL-derived `emailRedirectTo` resolves to `https://lunchboxd.live/`.
+
+Deploy with Wrangler direct upload (keeps deploy a deliberate manual step; the app repo lives on the local gitea, not GitHub, so there's no Git-connected auto-build):
 
 ```
 npm run build
-# replace the folder in the Pages repo and push (stage ONLY lunchboxd/ — the
-# Gambdle repo may have unrelated work in progress)
-rm -r ../Documents/GitHub/Gambdle/lunchboxd; cp -r dist ../Documents/GitHub/Gambdle/lunchboxd
-cd ../Documents/GitHub/Gambdle && git add lunchboxd && git commit -m "Deploy lunchboxd" && git push
+npx wrangler pages deploy dist --project-name lunchboxd
 ```
 
-Pages rebuilds in a minute or two; confirm the new asset hash appears in the live page source.
+Confirm the new asset hash appears in the live page source. Routing is hash-based, so no SPA-fallback / `_redirects` config is needed — every path is served from the root `index.html`.
+
+One-time setup (redo only if rebuilt): the `lunchboxd` Pages project exists in the Cloudflare account; `lunchboxd.live` is a Cloudflare zone (nameservers moved off Squarespace) with the apex added as the project's custom domain (Cloudflare CNAME-flattens the apex and provisions TLS).
+
+## Old URL redirect (gambdle.net/lunchboxd)
+
+The Gambdle Pages folder now holds a one-file redirect stub — `deploy/gambdle-redirect/index.html` in this repo — that forwards to lunchboxd.live carrying `location.hash`, so deep links (`#/c/<name>`, `#/u/<handle>`) survive. Deploy it **once, only after lunchboxd.live is verified live**, replacing the app folder (stage ONLY `lunchboxd/` — the Gambdle repo may have unrelated work in progress):
+
+```
+rm -r ../Documents/GitHub/Gambdle/lunchboxd
+cp -r deploy/gambdle-redirect ../Documents/GitHub/Gambdle/lunchboxd
+cd ../Documents/GitHub/Gambdle && git add lunchboxd && git commit -m "Redirect lunchboxd to lunchboxd.live" && git push
+```
 
 ## Backend (hosted Supabase, project `kxbteesmfozqzoxzktzv`)
 
@@ -24,7 +35,7 @@ One-time hosted config, already done (redo only if the project is rebuilt):
 
 - `lunchboxd` added to PostgREST's exposed schemas (Dashboard / Management API).
 - Anonymous sign-ins enabled.
-- Site URL and redirect allow-list include `https://gambdle.net/lunchboxd/` (the Site URL itself is Gambdle's — see the email-redirect rule in [../app/auth.md](../app/auth.md)).
+- Redirect allow-list includes `https://lunchboxd.live/` (and still `https://gambdle.net/lunchboxd/` for the transition). The Site URL itself stays Gambdle's — it's the shared project's single global value, so it can't be pointed at lunchboxd.live without breaking Gambdle; hence `emailRedirectTo` remains mandatory. See the email-redirect rule in [../app/auth.md](../app/auth.md).
 - Custom SMTP via Resend (2026-07-23): host `smtp.resend.com`, port 465, user `resend`, password = the Resend API key, sender `"Lunchboxd" <no-reply@maxout.art>`, `rate_limit_email_sent` 30/hour. The Resend account is the shared maxout one (its free-plan single-domain slot holds maxout.art, which is why lunchboxd sends from that domain — owner-accepted trade-off; see decisions.md). Three deliverability lessons, each proven necessary by controlled tests:
   - Without custom SMTP, Supabase's built-in mailer caps at 2 emails/hour project-wide and barely delivers to non-team addresses — the symptom is users reporting "I never got the email".
   - The sender must be `no-reply@maxout.art` (delivery history). Gmail silently discarded everything from the never-before-seen `lunchboxd@maxout.art` — accepted at SMTP (SES "delivered") then binned with no spam-folder trace.

@@ -27,7 +27,7 @@ export type Route =
 
 /**
  * Hash routing (#/u/handle, #/c/category, #/t/hashtag) because the site is a
- * static folder under gambdle.net/lunchboxd with no SPA-fallback rewrites.
+ * static build on Cloudflare Pages (lunchboxd.live) with no SPA-fallback rewrites.
  * Hashes also never collide with Supabase magic-link fragments (#access_token=…),
  * which the client consumes and clears before these routes matter.
  */
