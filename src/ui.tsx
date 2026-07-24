@@ -54,14 +54,15 @@ export function profileHref(username: string) {
  * a small chip. `admin` is granted (never self-picked); the rest are
  * self-service flair from the fixed roster in SELF_TAGS.
  */
-export type TagKind = 'admin' | 'peloton' | 'zwift';
+export type TagKind = 'admin' | 'peloton' | 'zwift' | 'runner';
 
-export const SELF_TAGS: readonly TagKind[] = ['peloton', 'zwift'];
+export const SELF_TAGS: readonly TagKind[] = ['peloton', 'zwift', 'runner'];
 
 const TAG_STYLES: Record<TagKind, { label: string; tone: string }> = {
   admin: { label: 'Admin', tone: 'text-admin' },
   peloton: { label: 'Peloton', tone: 'text-peloton' },
   zwift: { label: 'Zwift', tone: 'text-zwift' },
+  runner: { label: 'Runner', tone: 'text-runner' },
 };
 
 export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
