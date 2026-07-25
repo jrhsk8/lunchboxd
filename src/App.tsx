@@ -166,7 +166,7 @@ function Site() {
                   if (
                     session.user.is_anonymous &&
                     !window.confirm(
-                      `Guest accounts can't be recovered: sign out and ${username ? `"${username}"` : 'your handle'} is gone for good (your rankings stay up). Use "Keep account" first to attach an email. Sign out anyway?`,
+                      `Guest accounts can't be recovered: sign out and this account is gone for good. Your rankings stay on the board under ${username ? `"${username}"` : 'your handle'}, but you'll never add to them or pick a handle. Use "Add email" first to keep it. Sign out anyway?`,
                     )
                   ) {
                     return;
@@ -200,6 +200,11 @@ function Site() {
           version={version}
           userId={session?.user.id ?? null}
           viewerIsAdmin={isAdmin}
+          // From the JWT claim, which stays true until the session refreshes
+          // after an email is confirmed. That only gates the UI — the DB
+          // trigger reads auth.users.is_anonymous and has the final say — and
+          // a confirmation link lands here with a fresh session anyway.
+          viewerIsGuest={session?.user.is_anonymous ?? false}
           onChanged={refresh}
           onRenamed={() => {
             refresh();

@@ -2,6 +2,18 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-25 — Guests get a serial handle; picking a name costs an email
+
+Owner-asked, off two people losing a handle in the site's first two days ("seems like people keep losing their usernames, can we prevent this?").
+
+A guest identity is one refresh token in one browser's localStorage — no email, no password, nothing server-side that proves ownership. It dies with cleared site data, a second device, or **Safari's 7-day eviction of script-writable storage**, which nobody had hit yet only because the site was 48 hours old. The handle died with it permanently (see the 2026-07-23 entry below), so the only remedy was deleting the stranded account by hand, which had already happened twice.
+
+**Owner-ruled: a scarce name is only ever held by an account that can be recovered.** An anonymous signup is named `guest-<6 hex>` whatever the client asks for, and `enforce_handle_rules` refuses its renames until it attaches an email — at which point GoTrue flips `auth.users.is_anonymous` and the rename unlocks with no further plumbing. The handle field is gone from the sign-in card, and with it the availability pre-check that discarded its own error (a failed lookup read as "available", and the trigger then silently handed out `name-2`). Email-first signups still land on `eater-*` and rename freely: they can be signed back into, so the prefix marks "unnamed", not "temporary".
+
+Considered and rejected: **releasing abandoned handles on conflict** — a lease that degrades to `guest-*` once an unrecoverable holder goes idle. It keeps the pick-a-name onboarding, but it needs a `last_seen_at` (`last_sign_in_at` doesn't move on token refresh, so an active guest reads as dormant), and it wouldn't have helped the case that prompted this, since that handle had rankings behind it. The cost of the ruling as made is real and was accepted: the names are most of the fun here, 74 of 101 accounts came in through the guest door, and the feed now fills with serial numbers until people trade an email for a name — which is the trade the whole change exists to force.
+
+The 47 guests already holding picked names **keep them** (grandfathered — renaming live accounts to serial numbers is a different order of hostile from the charset rewrite two entries down). They're frozen on that handle until they attach an email. Migration `20260725020000_guest_handles.sql`; mechanics in docs/app/auth.md.
+
 ### 2026-07-25 — The Supporter badge is a column, not a tag
 
 Owner-asked: "add a Supporter tag and give it to people that have donated to me."

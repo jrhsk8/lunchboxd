@@ -340,6 +340,7 @@ export function ProfilePage({
   version,
   userId,
   viewerIsAdmin,
+  viewerIsGuest,
   onChanged,
   onRenamed,
 }: {
@@ -347,6 +348,7 @@ export function ProfilePage({
   version: number;
   userId: string | null;
   viewerIsAdmin: boolean;
+  viewerIsGuest: boolean;
   onChanged: () => void;
   onRenamed: () => void;
 }) {
@@ -404,11 +406,20 @@ export function ProfilePage({
               </span>
             )}
             {!banned && profileTags(profile).map((t) => <Tag key={t} kind={t} size={12} />)}
-            {own && !banned && (
+            {own && !banned && !viewerIsGuest && (
               <RenameControl userId={profile.id} current={profile.username} onRenamed={onRenamed} />
             )}
           </h1>
           <p className="mt-1 mb-0 text-sm text-dim">Eating since {since}</p>
+          {/* The nudge sits where the ✎ would be, because this is the moment
+              someone wants their own name and the serial number is the reason
+              they can't have it. The DB refuses the rename either way. */}
+          {own && !banned && viewerIsGuest && (
+            <p className="mt-1 mb-0 max-w-md text-sm text-dim">
+              Guests eat under a serial number. Add an email up top and you can pick a handle that
+              survives a new browser.
+            </p>
+          )}
         </div>
         {viewerIsAdmin && !own && !banned && !profile.is_admin && (
           <BanButton targetId={profile.id} username={profile.username} onChanged={onChanged} />

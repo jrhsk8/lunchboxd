@@ -620,7 +620,7 @@ export async function renameProfile(userId: string, username: string): Promise<{
   // arrive as one undifferentiated 23514 and the message has to cover both.
   return {
     error: refused('renaming a handle', error, {
-      [PG.duplicate]: `"${name}" is already claimed — even signed-out guests keep their handles.`,
+      [PG.duplicate]: `"${name}" is already claimed. A handle stays with the account that took it.`,
       [PG.checkViolation]:
         'Handles run 2 to 24 characters, using letters, numbers, hyphens and underscores. A few names are reserved.',
     }),

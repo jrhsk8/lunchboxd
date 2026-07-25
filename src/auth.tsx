@@ -59,8 +59,10 @@ export function useAuth() {
 const input = `w-full ${sharedInput}`;
 
 /**
- * Guests can claim their account Letterboxd-style: attach an email, confirm
- * it, and the handle + rankings become recoverable via magic link.
+ * The one thing a guest account is missing: an email. Attaching one and
+ * confirming it makes the account recoverable by magic link on any device, and
+ * — since 2026-07-25 — is what unlocks picking a handle instead of wearing the
+ * serial number the signup trigger hands out.
  */
 export function KeepAccount() {
   const [open, setOpen] = useState(false);
@@ -79,7 +81,7 @@ export function KeepAccount() {
     setStatus(
       error
         ? error.message
-        : 'Confirmation sent — click the link in your email and this account is yours for keeps.',
+        : 'Confirmation sent. Click the link in your email and the account is yours for keeps — then you can pick a handle from your profile.',
     );
     if (!error) setOpen(false);
   }
@@ -92,10 +94,10 @@ export function KeepAccount() {
           <button
             type="button"
             className="cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-clay hover:text-clay-hover"
-            title="Attach an email so this guest account can be recovered with a magic link"
+            title="Attach an email so you can sign back in on any device — and pick a handle instead of a serial number"
             onClick={() => setOpen(true)}
           >
-            Keep account
+            Add email
           </button>
         )}
       </span>
@@ -127,36 +129,21 @@ export function KeepAccount() {
   );
 }
 
-/** Sign-in card: guest-first (pick a handle, start ranking), magic link second. */
+/** Sign-in card: guest-first (one click, serial handle), magic link second. */
 export function SignInCard() {
-  const [handle, setHandle] = useState('');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // No handle field, and no availability pre-check to go with it: a guest is
+  // named `guest-<hex>` by the signup trigger whatever the client asks for
+  // (owner-ruled 2026-07-25 — a name nobody can hand back shouldn't be held by
+  // an account nobody can recover). Picking one is what an email buys.
   async function startAsGuest() {
-    if (!supabase || handle.trim().length < 2) return;
+    if (!supabase) return;
     setBusy(true);
     setStatus(null);
-    const name = handle.trim();
-    // Handles stay owned by their (possibly signed-out) account forever, so a
-    // collision deserves a real explanation, not a signup error. A race past
-    // this check is fine: the DB trigger falls back to name-2, name-3, ...
-    const { data: taken } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', name)
-      .maybeSingle();
-    if (taken) {
-      setStatus(
-        `"${name}" is already claimed. Guest handles can't be reclaimed once that session signs out or is lost — pick a fresh one (add an email after signing in to keep it yours).`,
-      );
-      setBusy(false);
-      return;
-    }
-    const { error } = await supabase.auth.signInAnonymously({
-      options: { data: { username: name } },
-    });
+    const { error } = await supabase.auth.signInAnonymously();
     if (error) setStatus(error.message);
     setBusy(false);
   }
@@ -176,29 +163,15 @@ export function SignInCard() {
   return (
     <div className="flex flex-col gap-4">
       <p className="m-0 text-sm leading-relaxed text-dim">
-        Categories and averages are shared with everyone. Pick a handle to start ranking.
+        Categories and averages are shared with everyone. You can start ranking straight away.
       </p>
-      <label className="flex flex-col gap-1.5 text-[11px] font-semibold tracking-wider text-dim uppercase">
-        Handle
-        <input
-          className={input}
-          placeholder="hotdog_hank"
-          maxLength={24}
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') startAsGuest();
-          }}
-        />
-      </label>
-      <button
-        type="button"
-        className={btnPrimary}
-        disabled={busy || handle.trim().length < 2}
-        onClick={startAsGuest}
-      >
+      <button type="button" className={btnPrimary} disabled={busy} onClick={startAsGuest}>
         Start ranking
       </button>
+      <p className="m-0 -mt-2 text-[11px] leading-relaxed text-faint">
+        Guests eat under a serial number &mdash; guest-4f2a1 and the like. Add an email whenever you
+        like and you can pick a handle that survives a new browser.
+      </p>
 
       <div className="flex items-center gap-3 text-[10px] tracking-wider text-faint uppercase">
         <span className="h-px flex-1 bg-edge" />
