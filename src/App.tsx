@@ -35,6 +35,7 @@ import {
   type EaterSort,
   type Ranking,
 } from './data';
+import { categoryToolsFor } from './permissions';
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
@@ -981,16 +982,6 @@ function CategoryBoard({
  * not carry the power to take everyone else's rankings down with it. Both are
  * checked again in `delete_category`; this only decides what to draw.
  */
-function categoryToolsFor(
-  category: CategoryStat,
-  userId: string | null,
-  viewerIsAdmin: boolean,
-): 'admin' | 'inventor' | null {
-  if (viewerIsAdmin) return 'admin';
-  if (userId && category.created_by === userId && category.ranker_count <= 1) return 'inventor';
-  return null;
-}
-
 /** Delete a category and everything ranked in it. Loud, because it's the loudest button here. */
 function DeleteCategoryButton({
   category,
@@ -1112,7 +1103,7 @@ function CategoryTools({
     onChanged();
   }
 
-  const role = categoryToolsFor(category, userId, viewerIsAdmin);
+  const role = categoryToolsFor(category, { userId, isAdmin: viewerIsAdmin, isGuest: false });
   if (role === null) return null;
 
   const deleted = () => {
@@ -1388,7 +1379,7 @@ function CategoryPage({
         </div>
       )}
 
-      {categoryToolsFor(stat, userId, viewerIsAdmin) && (
+      {categoryToolsFor(stat, { userId, isAdmin: viewerIsAdmin, isGuest: false }) && (
         <div className={`${panel} px-5 py-1`}>
           <CategoryTools
             category={stat}

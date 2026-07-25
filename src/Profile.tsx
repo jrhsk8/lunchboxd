@@ -21,6 +21,7 @@ import {
   useProfile,
   type ProfileRanking,
 } from './data';
+import { isOwnProfile, mayBan, mayEditOwnProfile } from './permissions';
 import { Stars } from './Stars';
 import { plural, TOP_SLOTS } from './text';
 import {
@@ -402,7 +403,13 @@ export function ProfilePage({
   }
 
   const list = rankings ?? [];
-  const own = userId === profile.id;
+  // Every condition below reads from permissions.ts rather than being
+  // re-derived here: they are a permission model, they are tested there, and
+  // the server enforces every one of them (#91).
+  const viewer = { userId, isAdmin: viewerIsAdmin, isGuest: viewerIsGuest };
+  const own = isOwnProfile(viewer, profile);
+  const mayEdit = mayEditOwnProfile(viewer, profile);
+  const showBan = mayBan(viewer, profile);
   // The timestamp rather than a boolean off it: the ban notice renders the
   // date, and a boolean derived from a property narrows nothing, which is what
   // the non-null assertion down there was standing in for (#98).
@@ -438,7 +445,7 @@ export function ProfilePage({
               </span>
             )}
             {!banned && profileTags(profile).map((t) => <Tag key={t} kind={t} size={12} />)}
-            {own && !banned && !viewerIsGuest && (
+            {mayEdit && !viewerIsGuest && (
               <RenameControl userId={profile.id} current={profile.username} onRenamed={onRenamed} />
             )}
           </h1>
@@ -446,7 +453,7 @@ export function ProfilePage({
           {/* The nudge sits where the ✎ would be, because this is the moment
               someone wants their own name and the serial number is the reason
               they can't have it. The DB refuses the rename either way. */}
-          {own && !banned && viewerIsGuest && (
+          {mayEdit && viewerIsGuest && (
             <p className="mt-1 mb-0 max-w-md text-sm text-dim">
               Guests eat under a serial number. Add an email up top and you can pick a handle that
               survives a new browser.
@@ -472,17 +479,17 @@ export function ProfilePage({
                 onEdit={own ? () => setStudioOpen((v) => !v) : undefined}
               />
             )}
-            {viewerIsAdmin && !own && !profile.is_admin && (
+            {showBan && (
               <BanButton targetId={profile.id} username={profile.username} onChanged={onChanged} />
             )}
           </div>
         )}
-        {banned && viewerIsAdmin && !own && !profile.is_admin && (
+        {banned && showBan && (
           <BanButton targetId={profile.id} username={profile.username} onChanged={onChanged} />
         )}
       </div>
 
-      {own && !banned && studioOpen && (
+      {mayEdit && studioOpen && (
         <CardStudio
           userId={profile.id}
           slots={[profile.card_slot_1, profile.card_slot_2, profile.card_slot_3]}
@@ -494,9 +501,7 @@ export function ProfilePage({
         />
       )}
 
-      {own && !banned && (
-        <TagPicker userId={profile.id} current={profile.tags} onChanged={onChanged} />
-      )}
+      {mayEdit && <TagPicker userId={profile.id} current={profile.tags} onChanged={onChanged} />}
 
       {bannedAt !== null ? (
         <div className={`${panel} px-6 py-12 text-center`}>
