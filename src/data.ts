@@ -10,7 +10,7 @@
  * whatever is on screen. See data-model.md before changing either.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type DependencyList } from 'react';
 
 import { cardStatsFrom, type CardStats } from './calling-card';
 import type { Database } from './database.types';
@@ -140,6 +140,40 @@ function fail(where: string, error: { message: string } | null): boolean {
 }
 
 /**
+ * The scaffold every read in this file used to write out by hand: give up if
+ * there is no client, run the query, ignore what comes back if the hook has
+ * moved on since, and tear the flag down on the way out.
+ *
+ * Ten hooks repeated it and differed only in the query and the mapping (#95).
+ * What is deliberately NOT folded in is each hook's own state: what it resets
+ * when its key changes, whether an empty result is a null or a `[]`, and which
+ * of them report a failure at all. Those differ subtly on purpose — the
+ * profile page resets on a handle change but not on a version bump, so it
+ * refetches in place without flashing — and a helper that decided them would
+ * freeze one hook's answer onto the other nine.
+ *
+ * `alive()` is a function rather than a boolean because it is read after an
+ * await, where a captured boolean would be the value from before it.
+ */
+function useSupabaseQuery(
+  run: (client: NonNullable<typeof supabase>, alive: () => boolean) => Promise<void>,
+  deps: DependencyList,
+) {
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    let alive = true;
+    void run(client, () => alive);
+    return () => {
+      alive = false;
+    };
+    // The caller states its own dependencies; `run` is redeclared every render
+    // and would defeat the list if it were in it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+
+/**
  * One person's public page: their profile row, their totals, their top four and
  * their ranking history. `profile` is undefined while loading, null when no
  * such handle exists. `error` is set when the lookup itself failed, which is a
@@ -162,20 +196,18 @@ export function useProfile(username: string, version: number) {
     setError(false);
   }, [username]);
 
-  useEffect(() => {
-    if (!supabase) return;
-    let alive = true;
-    (async () => {
+  useSupabaseQuery(
+    async (client, alive) => {
       // `username` is citext, so this matches regardless of case — #/u/Jack
       // finds `jack`.
-      const { data: prof, error: profErr } = await supabase
+      const { data: prof, error: profErr } = await client
         .from('profiles')
         .select(
           'id, username, created_at, is_admin, is_supporter, banned_at, tags, card_slot_1, card_slot_2, card_slot_3, card_accent',
         )
         .eq('username', username)
         .maybeSingle();
-      if (!alive) return;
+      if (!alive()) return;
       if (fail('profile lookup', profErr)) {
         setError(true);
         return;
@@ -185,13 +217,13 @@ export function useProfile(username: string, version: number) {
       if (!prof) return;
 
       const [listRes, statRes, topRes] = await Promise.all([
-        supabase
+        client
           .from('rankings')
           .select(`${RANKING_FIELDS}, category_id, categories(name)`)
           .eq('user_id', prof.id)
           .order('created_at', { ascending: false })
           .limit(500),
-        supabase
+        client
           .from('profile_stats')
           .select('ranking_count, category_count, hearted_count, avg_score')
           .eq('user_id', prof.id)
@@ -199,14 +231,14 @@ export function useProfile(username: string, version: number) {
         // Its own query rather than a filter over the list above: the list is
         // capped at 500 and ordered by recency, so a top four picked from a
         // heavy eater's older rankings would simply not be in it.
-        supabase
+        client
           .from('rankings')
           .select(`${RANKING_FIELDS}, category_id, categories(name)`)
           .eq('user_id', prof.id)
           .not('top_rank', 'is', null)
           .order('top_rank'),
       ]);
-      if (!alive) return;
+      if (!alive()) return;
       if (fail('profile rankings', listRes.error ?? statRes.error ?? topRes.error)) {
         setError(true);
         return;
@@ -214,11 +246,9 @@ export function useProfile(username: string, version: number) {
       setRankings(listRes.data ?? []);
       setStats(statRes.data as ProfileStats | null);
       setTop(topRes.data ?? []);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [username, version]);
+    },
+    [username, version],
+  );
 
   return { profile, rankings, stats, top, error };
 }
@@ -256,18 +286,17 @@ export function useBoard() {
   }, []);
   useEffect(() => () => clearTimeout(pending.current), []);
 
-  useEffect(() => {
-    if (!supabase) return;
-    let alive = true;
-    Promise.all([
-      supabase.from('category_stats').select('*'),
-      supabase
-        .from('rankings')
-        .select(`${RANKING_FIELDS}, categories(name)`)
-        .order('created_at', { ascending: false })
-        .limit(30),
-    ]).then(([statsRes, actRes]) => {
-      if (!alive) return;
+  useSupabaseQuery(
+    async (client, alive) => {
+      const [statsRes, actRes] = await Promise.all([
+        client.from('category_stats').select('*'),
+        client
+          .from('rankings')
+          .select(`${RANKING_FIELDS}, categories(name)`)
+          .order('created_at', { ascending: false })
+          .limit(30),
+      ]);
+      if (!alive()) return;
       if (fail('board', statsRes.error ?? actRes.error)) {
         setError(true);
         // Deliberately not setLoaded(true): an errored board must never fall
@@ -283,11 +312,9 @@ export function useBoard() {
       setStats(rows);
       setActivity(actRes.data ?? []);
       setLoaded(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [version]);
+    },
+    [version],
+  );
 
   useEffect(() => {
     if (!supabase) return;
@@ -338,16 +365,14 @@ export function useCategoryStat(name: string, version: number) {
     setError(false);
   }, [name]);
 
-  useEffect(() => {
-    if (!supabase) return;
-    let alive = true;
-    (async () => {
-      const { data: cat, error: catErr } = await supabase
+  useSupabaseQuery(
+    async (client, alive) => {
+      const { data: cat, error: catErr } = await client
         .from('categories')
         .select('id')
         .eq('name', name)
         .maybeSingle();
-      if (!alive) return;
+      if (!alive()) return;
       if (fail('category lookup', catErr)) {
         setError(true);
         return;
@@ -357,23 +382,21 @@ export function useCategoryStat(name: string, version: number) {
         setStat(null);
         return;
       }
-      const { data, error: statErr } = await supabase
+      const { data, error: statErr } = await client
         .from('category_stats')
         .select('*')
         .eq('id', cat.id)
         .maybeSingle();
-      if (!alive) return;
+      if (!alive()) return;
       if (fail('category stats', statErr)) {
         setError(true);
         return;
       }
       setError(false);
       setStat((data as CategoryStat | null) ?? null);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [name, version]);
+    },
+    [name, version],
+  );
 
   return { stat, error };
 }
@@ -381,7 +404,7 @@ export function useCategoryStat(name: string, version: number) {
 /**
  * Rankings whose review contains a given #hashtag, newest first. The DB does a
  * case-insensitive substring prefilter (`ilike %#tag%`, backed by the trigram
- * index); the supabase then refines with a word-boundary regex so "#tag" doesn't
+ * index); the client then refines with a word-boundary regex so "#tag" doesn't
  * match "#tagged". That boundary rule must stay in step with HASHTAG_RE in
  * `src/text.ts` — both are covered by `src/text.test.ts`.
  */
@@ -395,21 +418,19 @@ export function useHashtagReviews(hashtag: string, version: number) {
     setError(false);
   }, [hashtag]);
 
-  useEffect(() => {
-    if (!supabase) return;
-    if (!clean) {
-      setRows([]);
-      return;
-    }
-    let alive = true;
-    (async () => {
-      const { data, error: err } = await supabase
+  useSupabaseQuery(
+    async (client, alive) => {
+      if (!clean) {
+        setRows([]);
+        return;
+      }
+      const { data, error: err } = await client
         .from('rankings')
         .select(`${RANKING_FIELDS}, categories(name)`)
         .ilike('review', `%#${clean}%`)
         .order('created_at', { ascending: false })
         .limit(200);
-      if (!alive) return;
+      if (!alive()) return;
       if (fail('hashtag search', err)) {
         setError(true);
         return;
@@ -417,11 +438,9 @@ export function useHashtagReviews(hashtag: string, version: number) {
       setError(false);
       const boundary = new RegExp(`(^|[^a-z0-9_])#${clean}([^a-z0-9_]|$)`, 'i');
       setRows((data ?? []).filter((r) => r.review && boundary.test(r.review)));
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [clean, version]);
+    },
+    [clean, version],
+  );
 
   return { rows, error };
 }
@@ -431,35 +450,32 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
   const [rankings, setRankings] = useState<Ranking[] | null>(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    // Clears the error as well as the rows: a failure against the previous
-    // category would otherwise survive into this one and render LoadError over
-    // a category that loaded fine.
-    setError(false);
-    if (!supabase || !categoryId) {
-      setRankings(null);
-      return;
-    }
-    let alive = true;
-    supabase
-      .from('rankings')
-      .select(RANKING_FIELDS)
-      .eq('category_id', categoryId)
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(({ data, error: err }) => {
-        if (!alive) return;
-        if (fail('category rankings', err)) {
-          setError(true);
-          return;
-        }
-        setError(false);
-        setRankings(data ?? []);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [categoryId, version]);
+  useSupabaseQuery(
+    async (client, alive) => {
+      // Clears the error as well as the rows: a failure against the previous
+      // category would otherwise survive into this one and render LoadError
+      // over a category that loaded fine.
+      setError(false);
+      if (!categoryId) {
+        setRankings(null);
+        return;
+      }
+      const { data, error: err } = await client
+        .from('rankings')
+        .select(RANKING_FIELDS)
+        .eq('category_id', categoryId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (!alive()) return;
+      if (fail('category rankings', err)) {
+        setError(true);
+        return;
+      }
+      setError(false);
+      setRankings(data ?? []);
+    },
+    [categoryId, version],
+  );
 
   return { rankings, error };
 }
@@ -478,30 +494,27 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
 export function useCardStats(userId: string | null, version: number) {
   const [stats, setStats] = useState<CardStats | null>(null);
 
-  useEffect(() => {
-    // Cleared on a person change, not only when the id goes null: walking from
-    // one profile to the next otherwise left the card showing the numbers of
-    // the person you just left, attributed by name to the one you opened.
-    setStats(null);
-    if (!supabase || !userId) return;
-    let alive = true;
-    supabase
-      .from('profile_card_stats')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!alive) return;
-        if (error || !data) {
-          if (error) console.error('lunchboxd: card stats failed —', error.message);
-          return;
-        }
-        setStats(cardStatsFrom(data));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId, version]);
+  useSupabaseQuery(
+    async (client, alive) => {
+      // Cleared on a person change, not only when the id goes null: walking
+      // from one profile to the next otherwise left the card showing the
+      // numbers of the person you just left, attributed by name to the one you
+      // opened.
+      setStats(null);
+      if (!userId) return;
+      const { data, error } = await client
+        .from('profile_card_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (!alive()) return;
+      // Swallowed on purpose: a card that doesn't draw is not worth replacing
+      // the profile with a failure notice.
+      if (fail('card stats', error) || !data) return;
+      setStats(cardStatsFrom(data));
+    },
+    [userId, version],
+  );
 
   return stats;
 }
@@ -549,30 +562,21 @@ export async function saveCard(
 export function useMyLikes(userId: string | null, version: number) {
   const [liked, setLiked] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!supabase || !userId) {
-      setLiked(new Set());
-      return;
-    }
-    let alive = true;
-    supabase
-      .from('likes')
-      .select('ranking_id')
-      .eq('user_id', userId)
-      .then(({ data, error }) => {
-        if (!alive) return;
-        if (error) {
-          // Not page-breaking: the counts still render, the viewer's own marks
-          // just sit unlit until the next refresh.
-          console.error('lunchboxd: own likes failed —', error.message);
-          return;
-        }
-        setLiked(new Set((data ?? []).map((l) => l.ranking_id)));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId, version]);
+  useSupabaseQuery(
+    async (client, alive) => {
+      if (!userId) {
+        setLiked(new Set());
+        return;
+      }
+      const { data, error } = await client.from('likes').select('ranking_id').eq('user_id', userId);
+      if (!alive()) return;
+      // Swallowed on purpose: the counts still render, the viewer's own marks
+      // just sit unlit until the next refresh.
+      if (fail('own likes', error)) return;
+      setLiked(new Set((data ?? []).map((l) => l.ranking_id)));
+    },
+    [userId, version],
+  );
 
   return liked;
 }
@@ -605,7 +609,7 @@ export const EATERS_PAGE = 24;
 /**
  * The Eaters tab: everyone who has ever ranked, with what their card needs.
  *
- * Sorted and paged in the database rather than in the supabase. The tab shows 24
+ * Sorted and paged in the database rather than in the client. The tab shows 24
  * of seventy-odd and offers four orderings; sorting here would mean fetching
  * every eater and their whole card to draw a third of them, and the cap would
  * be a slice rather than a limit. `count: 'exact'` rides along so the button
@@ -621,38 +625,34 @@ export function useEaters(sort: EaterSort, shown: number, version: number) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    if (!supabase) return;
-    let alive = true;
-    const { column, ascending } = EATER_ORDER[sort];
-    supabase
-      .from('eaters')
-      .select('*', { count: 'exact' })
-      // Nulls last matters for `recent` only in theory — the view is filtered
-      // to people with a ranking, so last_ranked_at is never null — but the
-      // filter and the order are in different places and only one of them is
-      // obvious from here.
-      .order(column, { ascending, nullsFirst: false })
-      // A stable tiebreak, or two people with the same count swap places
-      // between pages and one of them is fetched twice while the other is
-      // never fetched at all.
-      .order('user_id', { ascending: true })
-      .range(0, shown - 1)
-      .then(({ data, count, error }) => {
-        if (!alive) return;
-        setLoaded(true);
-        if (fail('eaters', error)) {
-          setError(true);
-          return;
-        }
-        setError(false);
-        setItems((data ?? []) as Eater[]);
-        setTotal(count ?? 0);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [sort, shown, version]);
+  const { column, ascending } = EATER_ORDER[sort];
+  useSupabaseQuery(
+    async (client, alive) => {
+      const { data, count, error } = await client
+        .from('eaters')
+        .select('*', { count: 'exact' })
+        // Nulls last matters for `recent` only in theory — the view is
+        // filtered to people with a ranking, so last_ranked_at is never null —
+        // but the filter and the order are in different places and only one of
+        // them is obvious from here.
+        .order(column, { ascending, nullsFirst: false })
+        // A stable tiebreak, or two people with the same count swap places
+        // between pages and one of them is fetched twice while the other is
+        // never fetched at all.
+        .order('user_id', { ascending: true })
+        .range(0, shown - 1);
+      if (!alive()) return;
+      setLoaded(true);
+      if (fail('eaters', error)) {
+        setError(true);
+        return;
+      }
+      setError(false);
+      setItems((data ?? []) as Eater[]);
+      setTotal(count ?? 0);
+    },
+    [column, ascending, shown, version],
+  );
 
   return { items, total, loaded, error };
 }
@@ -683,40 +683,38 @@ export function useNotifications(userId: string | null, version: number) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    if (!supabase || !userId) {
-      setItems([]);
-      setLoaded(true);
-      return;
-    }
-    let alive = true;
-    setLoaded(false);
-    supabase
-      .from('notifications')
-      .select(
-        'id, created_at, read_at, kind, actor:profiles!notifications_actor_id_fkey(username, is_admin, is_supporter, tags), rankings(food, categories(name))',
-      )
-      // RLS is what actually scopes these rows, and it is not going anywhere.
-      // The filter is the second line: without it the query claims to be about
-      // one person and isn't, and the day that policy is widened for a new
-      // `kind`, the supabase would quietly start reading other people's news.
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(100)
-      .then(({ data, error }) => {
-        if (!alive) return;
+  useSupabaseQuery(
+    async (client, alive) => {
+      if (!userId) {
+        setItems([]);
         setLoaded(true);
-        if (fail('notifications', error)) {
-          setError(true);
-          return;
-        }
-        setError(false);
-        setItems((data ?? []) as unknown as Notification[]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId, version]);
+        return;
+      }
+      setLoaded(false);
+      const { data, error } = await client
+        .from('notifications')
+        .select(
+          'id, created_at, read_at, kind, actor:profiles!notifications_actor_id_fkey(username, is_admin, is_supporter, tags), rankings(food, categories(name))',
+        )
+        // RLS is what actually scopes these rows, and it is not going
+        // anywhere. The filter is the second line: without it the query claims
+        // to be about one person and isn't, and the day that policy is widened
+        // for a new `kind`, the client would quietly start reading other
+        // people's news.
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (!alive()) return;
+      setLoaded(true);
+      if (fail('notifications', error)) {
+        setError(true);
+        return;
+      }
+      setError(false);
+      setItems((data ?? []) as unknown as Notification[]);
+    },
+    [userId, version],
+  );
 
   return { items, loaded, error };
 }
@@ -728,30 +726,24 @@ export function useNotifications(userId: string | null, version: number) {
 export function useUnreadCount(userId: string | null, version: number) {
   const [count, setCount] = useState(0);
 
-  useEffect(() => {
-    if (!supabase || !userId) {
-      setCount(0);
-      return;
-    }
-    let alive = true;
-    supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .is('read_at', null)
-      .then(({ count, error }) => {
-        if (!alive) return;
-        if (error) {
-          // The bell just doesn't light up. Not worth a visible failure.
-          console.error('lunchboxd: unread count failed —', error.message);
-          return;
-        }
-        setCount(count ?? 0);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId, version]);
+  useSupabaseQuery(
+    async (client, alive) => {
+      if (!userId) {
+        setCount(0);
+        return;
+      }
+      const { count, error } = await client
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .is('read_at', null);
+      if (!alive()) return;
+      // Swallowed on purpose: the bell just doesn't light up.
+      if (fail('unread count', error)) return;
+      setCount(count ?? 0);
+    },
+    [userId, version],
+  );
 
   return count;
 }
@@ -849,7 +841,7 @@ export async function rankFood(opts: {
 /**
  * Edit one of your own rankings in place. The column grant covers exactly these
  * four fields, so a ranking can't be moved between people or categories from
- * the supabase. Edits are silent by design — no marker, and `created_at` doesn't
+ * the client. Edits are silent by design — no marker, and `created_at` doesn't
  * move, so editing can't re-float a ranking up the activity feed.
  */
 export async function updateRanking(
