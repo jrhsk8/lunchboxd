@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 // Imported from text.ts, where these rules live on purpose: each is a decision
 // with edge cases, and a test is what keeps the decision from drifting.
-import { hashtagsIn, nextTopSlot, parseHash, PG, timeAgo, writeError } from './text';
+import { cleanHashtag, hashtagsIn, nextTopSlot, parseHash, PG, timeAgo, writeError } from './text';
 
 /*
  * The pure functions worth pinning: each has boundary rules subtle enough to
@@ -49,6 +49,34 @@ describe('hashtag matching', () => {
   it('ignores a bare hash', () => {
     expect(hashtagsIn('# ')).toEqual([]);
     expect(hashtagsIn('#')).toEqual([]);
+  });
+});
+
+describe('cleanHashtag', () => {
+  // The route value and HASHTAG_RE have to agree: whatever survives this is
+  // what the page titles itself, what the ilike prefilter searches for, and
+  // what the boundary regex is built from.
+  it('lower-cases, because the hash is hand-editable', () => {
+    expect(cleanHashtag('Pizza')).toBe('pizza');
+  });
+
+  it('drops everything outside the hashtag character class', () => {
+    expect(cleanHashtag('pizza!')).toBe('pizza');
+    expect(cleanHashtag('pad-thai')).toBe('padthai');
+    expect(cleanHashtag('#pizza')).toBe('pizza');
+  });
+
+  it('keeps digits and underscores, which hashtags may contain', () => {
+    expect(cleanHashtag('pad_thai2')).toBe('pad_thai2');
+  });
+
+  it('cleans a clean value to itself, since the page and the hook both clean', () => {
+    expect(cleanHashtag(cleanHashtag('Pad-Thai!'))).toBe(cleanHashtag('Pad-Thai!'));
+  });
+
+  it('gives back nothing when nothing survives', () => {
+    expect(cleanHashtag('!!!')).toBe('');
+    expect(cleanHashtag('')).toBe('');
   });
 });
 

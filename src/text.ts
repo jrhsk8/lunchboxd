@@ -46,6 +46,19 @@ export function hashtagsIn(text: string): string[] {
   return [...text.matchAll(HASHTAG_RE)].map((m) => m[2]);
 }
 
+/**
+ * A hashtag from the route, reduced to what a hashtag may contain: lower case,
+ * and nothing outside HASHTAG_RE's character class. The hash is hand-editable,
+ * so "#/t/Pizza!" and "#/t/pizza" have to name the same page.
+ *
+ * Lives here beside the pattern it has to agree with — the two were written
+ * separately in `HashtagPage` and in `useHashtagReviews`, which meant the page
+ * cleaned a value and then handed it to a hook that cleaned it again (#88).
+ */
+export function cleanHashtag(hashtag: string): string {
+  return hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+}
+
 /** The Postgres SQLSTATEs this client can actually meet, by name. */
 export const PG = {
   /** Unique violation: a duplicate ranking, handle, category name, or top-four slot. */

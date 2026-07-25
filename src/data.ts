@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { cardStatsFrom, type CardStats, type CardStatsRow } from './calling-card';
 import type { Database } from './database.types';
 import { supabase } from './supabase';
-import { nextTopSlot, PG, writeError, type WriteError } from './text';
+import { cleanHashtag, nextTopSlot, PG, writeError, type WriteError } from './text';
 
 export type CategoryStat = {
   id: string;
@@ -351,7 +351,7 @@ export function useCategoryStat(name: string, version: number) {
 export function useHashtagReviews(hashtag: string, version: number) {
   const [rows, setRows] = useState<Activity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const clean = hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const clean = cleanHashtag(hashtag);
 
   useEffect(() => {
     setRows(null);

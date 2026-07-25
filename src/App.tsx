@@ -38,6 +38,7 @@ import {
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
+import { cleanHashtag } from './text';
 import {
   btnPrimary,
   categoryHref,
@@ -1308,7 +1309,7 @@ function CategoryPage({
 
 /** Every review carrying a given #hashtag, newest first. */
 function HashtagPage({ hashtag, version }: { hashtag: string; version: number }) {
-  const clean = hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const clean = cleanHashtag(hashtag);
   const { rows, error } = useHashtagReviews(clean, version);
 
   return (
