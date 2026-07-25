@@ -161,14 +161,22 @@ describe('resolving a slot', () => {
 });
 
 describe('the accent', () => {
-  it('applies only while the Supporter badge holds', () => {
-    expect(resolveAccent('teal', true)).toBe('teal');
-    expect(resolveAccent('teal', false)).toBe(null);
+  const supporter = { isSupporter: true, isAdmin: false };
+  const admin = { isSupporter: false, isAdmin: true };
+  const neither = { isSupporter: false, isAdmin: false };
+
+  it('applies while the Supporter badge holds', () => {
+    expect(resolveAccent('teal', supporter)).toBe('teal');
+    expect(resolveAccent('teal', neither)).toBe(null);
+  });
+
+  it('applies to an admin who supports nothing', () => {
+    expect(resolveAccent('teal', admin)).toBe('teal');
   });
 
   it('drops a swatch that is not in the roster', () => {
-    expect(resolveAccent('hotpink', true)).toBe(null);
-    expect(resolveAccent(null, true)).toBe(null);
+    expect(resolveAccent('hotpink', supporter)).toBe(null);
+    expect(resolveAccent(null, supporter)).toBe(null);
   });
 });
 

@@ -217,14 +217,25 @@ export function resolveSlot(key: CardStatKey, stats: CardStats): CardSlot {
   }
 }
 
+/** The two badges that decide whether a card may carry a colour. */
+export interface AccentBadges {
+  isSupporter: boolean;
+  isAdmin: boolean;
+}
+
+/** Whether this person may choose an accent at all — a supporter or an admin. */
+export function mayAccent(badges: AccentBadges): boolean {
+  return badges.isSupporter || badges.isAdmin;
+}
+
 /**
- * The accent actually applied: the chosen swatch only while the Supporter badge
- * holds, else null (the plain panel ground). Gated here rather than at the
+ * The accent actually applied: the chosen swatch only while a badge that earns
+ * it holds, else null (the plain panel ground). Gated here rather than at the
  * write, so a lapsed supporter's card reverts on its own with nothing to clean
  * up — and gets its colour back if the badge returns.
  */
-export function resolveAccent(accent: string | null, isSupporter: boolean): CardAccentKey | null {
-  if (!isSupporter) return null;
+export function resolveAccent(accent: string | null, badges: AccentBadges): CardAccentKey | null {
+  if (!mayAccent(badges)) return null;
   return isCardAccentKey(accent) ? accent : null;
 }
 

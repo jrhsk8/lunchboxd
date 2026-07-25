@@ -437,6 +437,7 @@ function EatersTab({ version }: { version: number }) {
                   slots={[e.card_slot_1, e.card_slot_2, e.card_slot_3]}
                   accent={e.card_accent}
                   isSupporter={e.is_supporter}
+                  isAdmin={e.is_admin}
                 />
               </li>
             ))}

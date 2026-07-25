@@ -7,6 +7,7 @@ import {
   CARD_STAT_LABELS,
   cardTrio,
   isCardStatKey,
+  mayAccent,
   resolveAccent,
   resolveSlot,
   type CardStatKey,
@@ -34,6 +35,7 @@ export function CallingCard({
   slots,
   accent,
   isSupporter,
+  isAdmin,
   onEdit,
   className = '',
 }: {
@@ -48,12 +50,13 @@ export function CallingCard({
   slots: readonly (string | null)[] | null;
   accent: string | null;
   isSupporter: boolean;
+  isAdmin: boolean;
   /** Present only on your own card: opens the studio. */
   onEdit?: () => void;
   className?: string;
 }) {
   const [hero, second, third] = cardTrio(slots).map((key) => resolveSlot(key, stats));
-  const applied = resolveAccent(accent, isSupporter);
+  const applied = resolveAccent(accent, { isSupporter, isAdmin });
 
   return (
     <article
@@ -130,6 +133,7 @@ export function CardStudio({
   slots,
   accent,
   isSupporter,
+  isAdmin,
   onSaved,
   onClose,
 }: {
@@ -137,6 +141,7 @@ export function CardStudio({
   slots: readonly (string | null)[] | null;
   accent: string | null;
   isSupporter: boolean;
+  isAdmin: boolean;
   onSaved: () => void;
   onClose: () => void;
 }) {
@@ -144,12 +149,13 @@ export function CardStudio({
   const [tint, setTint] = useState<string | null>(accent);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const colourable = mayAccent({ isSupporter, isAdmin });
 
   async function save() {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = await saveCard(userId, picks, isSupporter ? tint : null);
+    const result = await saveCard(userId, picks, colourable ? tint : null);
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -200,10 +206,11 @@ export function CardStudio({
         ))}
       </div>
 
-      {/* No picker at all for a non-supporter, rather than a disabled one: a
-          control you can see and can't use reads as a fault, and this is a
-          thank-you rather than an upsell. */}
-      {isSupporter && (
+      {/* No picker at all for anyone without the badge, rather than a disabled
+          one: a control you can see and can't use reads as a fault, and this is
+          a thank-you rather than an upsell. Admins get it too — they carry the
+          site, and the colour is the same reward either way. */}
+      {colourable && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] tracking-wide text-faint">Card colour</span>
           <button

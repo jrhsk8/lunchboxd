@@ -468,6 +468,7 @@ export function ProfilePage({
                 slots={[profile.card_slot_1, profile.card_slot_2, profile.card_slot_3]}
                 accent={profile.card_accent}
                 isSupporter={profile.is_supporter}
+                isAdmin={profile.is_admin}
                 onEdit={own ? () => setStudioOpen((v) => !v) : undefined}
               />
             )}
@@ -487,6 +488,7 @@ export function ProfilePage({
           slots={[profile.card_slot_1, profile.card_slot_2, profile.card_slot_3]}
           accent={profile.card_accent}
           isSupporter={profile.is_supporter}
+          isAdmin={profile.is_admin}
           onSaved={onChanged}
           onClose={() => setStudioOpen(false)}
         />
