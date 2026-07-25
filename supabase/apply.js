@@ -70,6 +70,33 @@ export async function run(query, token = readToken()) {
   }
 }
 
+/** Transaction control at the start of a line, ignoring `--` comments. */
+const OWN_TRANSACTION = /^\s*(begin|commit|rollback|start\s+transaction|end)\b/im;
+
+/**
+ * A migration, wrapped so it lands whole or not at all.
+ *
+ * The endpoint runs a whole file as one batch with no transaction of its own,
+ * so a migration failing at its fourth statement used to leave the schema in a
+ * state neither the file nor the repo describes — and there is no local stack
+ * to discover that on, because the only target is production (#115).
+ *
+ * A file carrying its own `begin`/`commit` is refused rather than nested:
+ * Postgres treats a nested `begin` as a warning and ignores it, so wrapping
+ * one would silently produce something other than what the file says. The two
+ * statements that genuinely cannot run inside a transaction — `create index
+ * concurrently` and `alter type … add value` before PG12 — need `-e` or a file
+ * that opts out by writing its own transaction control.
+ */
+function wrapInTransaction(sql, name) {
+  if (OWN_TRANSACTION.test(sql)) {
+    throw new Error(
+      `${name} carries its own transaction control; run it with -e if that is deliberate`,
+    );
+  }
+  return `begin;\n${sql}\ncommit;`;
+}
+
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('apply.js')) {
   const args = process.argv.slice(2);
   let sql;
@@ -77,8 +104,9 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
     sql = args[1];
   } else {
     const file = path.isAbsolute(args[0]) ? args[0] : path.join(HERE, args[0]);
-    sql = fs.readFileSync(file, 'utf8');
-    console.log(`applying ${path.basename(file)} (${sql.length} bytes)`);
+    const name = path.basename(file);
+    sql = wrapInTransaction(fs.readFileSync(file, 'utf8'), name);
+    console.log(`applying ${name} (${sql.length} bytes, in one transaction)`);
   }
   const out = await run(sql);
   console.log(
