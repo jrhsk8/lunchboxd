@@ -39,7 +39,7 @@ import { categoryToolsFor, viewerKind } from './permissions';
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
-import { cleanHashtag, matchCategories, plural } from './text';
+import { cleanHashtag, matchCategories, plural, routeSignpost } from './text';
 import {
   btnPrimary,
   categoryHref,
@@ -102,18 +102,7 @@ function Site() {
   const [tab, setTab] = useState<BoardTab>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const routeKey =
-    route.page === 'profile'
-      ? `u/${route.username}`
-      : route.page === 'category'
-        ? `c/${route.name}`
-        : route.page === 'hashtag'
-          ? `t/${route.hashtag}`
-          : route.page === 'terms'
-            ? 'terms'
-            : route.page === 'notifications'
-              ? 'notifications'
-              : 'home';
+  const { key: routeKey, title } = routeSignpost(route);
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [routeKey]);
@@ -123,19 +112,8 @@ function Site() {
   // separate problem the hash router can't solve — a crawler never sees the
   // fragment — so the static og:* tags in index.html carry those.
   useEffect(() => {
-    document.title =
-      route.page === 'profile'
-        ? `${route.username} — Lunchboxd`
-        : route.page === 'category'
-          ? `${route.name} — Lunchboxd`
-          : route.page === 'hashtag'
-            ? `#${route.hashtag} — Lunchboxd`
-            : route.page === 'terms'
-              ? 'Terms of service — Lunchboxd'
-              : route.page === 'notifications'
-                ? 'Notifications — Lunchboxd'
-                : 'Lunchboxd: Food, Ranked';
-  }, [route]);
+    document.title = title;
+  }, [title]);
 
   const totalRankings = stats.reduce((n, c) => n + c.ranking_count, 0);
 

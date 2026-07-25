@@ -209,6 +209,36 @@ export type Route =
   | { page: 'terms' };
 
 /**
+ * What a route is called and what counts as arriving somewhere new.
+ *
+ * `title` is the browser tab and the history entry; `key` is what the scroll
+ * reset watches, so it has to change exactly when the page does and not when
+ * the route object is rebuilt. Both used to be six-branch ternary chains in
+ * `Site`, written separately over the same six cases, so adding a route meant
+ * editing three places and the compiler checked none of them.
+ *
+ * A switch rather than a lookup object: the payload differs per page, and this
+ * way a new member of `Route` is a compile error here rather than a page that
+ * silently titles itself "Lunchboxd: Food, Ranked" (#89).
+ */
+export function routeSignpost(route: Route): { key: string; title: string } {
+  switch (route.page) {
+    case 'profile':
+      return { key: `u/${route.username}`, title: `${route.username} — Lunchboxd` };
+    case 'category':
+      return { key: `c/${route.name}`, title: `${route.name} — Lunchboxd` };
+    case 'hashtag':
+      return { key: `t/${route.hashtag}`, title: `#${route.hashtag} — Lunchboxd` };
+    case 'notifications':
+      return { key: 'notifications', title: 'Notifications — Lunchboxd' };
+    case 'terms':
+      return { key: 'terms', title: 'Terms of service — Lunchboxd' };
+    case 'home':
+      return { key: 'home', title: 'Lunchboxd: Food, Ranked' };
+  }
+}
+
+/**
  * One hash, one route. Pure, so every rule below is testable.
  *
  * Anything unrecognised is home, deliberately and silently: the fragment is

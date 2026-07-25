@@ -11,6 +11,7 @@ import {
   PG,
   plural,
   reviewPieces,
+  routeSignpost,
   timeAgo,
   writeError,
 } from './text';
@@ -363,5 +364,39 @@ describe('parseHash', () => {
   it('keeps an unknown single-letter route out', () => {
     expect(parseHash('#/x/whatever')).toEqual({ page: 'home' });
     expect(parseHash('#/u/')).toEqual({ page: 'home' });
+  });
+});
+
+describe('routeSignpost', () => {
+  // The scroll reset watches `key` and the tab shows `title`, and both used to
+  // be their own ternary chain over the same six pages.
+  it('names every page and gives each its own key', () => {
+    const seen = new Set<string>();
+    for (const route of [
+      { page: 'home' },
+      { page: 'terms' },
+      { page: 'notifications' },
+      { page: 'profile', username: 'hotdog_hank' },
+      { page: 'category', name: 'Gas Station Sushi' },
+      { page: 'hashtag', hashtag: 'brunch' },
+    ] as const) {
+      const { key, title } = routeSignpost(route);
+      expect(title).toContain('Lunchboxd');
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+    }
+    expect(seen.size).toBe(6);
+  });
+
+  it('carries the value into both, so two profiles are two pages', () => {
+    expect(routeSignpost({ page: 'profile', username: 'hank' })).toEqual({
+      key: 'u/hank',
+      title: 'hank — Lunchboxd',
+    });
+    expect(routeSignpost({ page: 'hashtag', hashtag: 'brunch' }).title).toBe('#brunch — Lunchboxd');
+  });
+
+  it('titles home with the line the site opens with', () => {
+    expect(routeSignpost({ page: 'home' }).title).toBe('Lunchboxd: Food, Ranked');
   });
 });
