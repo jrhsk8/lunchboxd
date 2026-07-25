@@ -1,20 +1,17 @@
 import { useState } from 'react';
 
-import { banProfile, deleteRanking, renameProfile, setProfileTags, useProfile } from './data';
-import { Stars } from './Stars';
+import { banProfile, renameProfile, setProfileTags, useProfile } from './data';
 import {
   CategoryLink,
-  Heart,
   kicker,
+  LoadError,
   panel,
   profileHref,
   profileTags,
-  ReviewText,
-  reviewLine,
+  RankingRow,
   scoreTone,
   SELF_TAGS,
   Tag,
-  timeAgo,
 } from './ui';
 
 function Stat({
@@ -233,7 +230,9 @@ export function ProfilePage({
   onChanged: () => void;
   onRenamed: () => void;
 }) {
-  const { profile, rankings } = useProfile(username, version);
+  const { profile, rankings, stats, error } = useProfile(username, version);
+
+  if (error) return <LoadError />;
 
   if (profile === undefined)
     return <p className="m-0 py-16 text-center text-sm text-faint">Loading…</p>;
@@ -255,9 +254,13 @@ export function ProfilePage({
   const list = rankings ?? [];
   const own = userId === profile.id;
   const banned = profile.banned_at !== null;
-  const avg = list.length ? list.reduce((s, r) => s + Number(r.score), 0) / list.length : null;
-  const categoryCount = new Set(list.map((r) => r.category_id)).size;
-  const lovedCount = list.filter((r) => r.hearted).length;
+  // From profile_stats, not from `list`: the list is capped at 500, and
+  // deriving these from it made a heavy user's lifetime average silently the
+  // average of their most recent page.
+  const avg = stats?.avg_score == null ? null : Number(stats.avg_score);
+  const rankingCount = stats?.ranking_count ?? list.length;
+  const categoryCount = stats?.category_count ?? 0;
+  const lovedCount = stats?.hearted_count ?? 0;
   const since = new Date(profile.created_at).toLocaleDateString(undefined, {
     month: 'long',
     year: 'numeric',
@@ -307,7 +310,10 @@ export function ProfilePage({
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label={list.length === 1 ? 'Ranking' : 'Rankings'} value={String(list.length)} />
+            <Stat
+              label={rankingCount === 1 ? 'Ranking' : 'Rankings'}
+              value={String(rankingCount)}
+            />
             <Stat
               label={categoryCount === 1 ? 'Category' : 'Categories'}
               value={String(categoryCount)}
@@ -333,13 +339,17 @@ export function ProfilePage({
             <div className={`${panel} px-5 py-3`}>
               <ul className="m-0 flex list-none flex-col p-0">
                 {list.map((r) => (
-                  <li
+                  <RankingRow
                     key={r.id}
+                    ranking={r}
+                    userId={userId}
+                    onChanged={onChanged}
+                    controls="owner"
+                    categoryName={r.categories?.name}
                     className="group flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
-                  >
-                    <span className="min-w-0 text-sm sm:flex-1">
-                      {/* Wraps on phones: one truncated line always cut the
-                          category link off the end. */}
+                    headline={
+                      /* Wraps on phones: one truncated line always cut the
+                         category link off the end. */
                       <span className="block break-words sm:truncate">
                         {r.food} <span className="text-dim">in</span>{' '}
                         {r.categories ? (
@@ -348,38 +358,8 @@ export function ProfilePage({
                           <span className="font-semibold text-clay">?</span>
                         )}
                       </span>
-                      {r.review && (
-                        <span className={reviewLine} title={r.review}>
-                          "<ReviewText text={r.review} />"
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex items-center gap-3 sm:contents">
-                      <span className="w-14 shrink-0 text-left text-xs text-faint tabular-nums sm:text-right">
-                        {timeAgo(r.created_at)}
-                      </span>
-                      <Stars value={Number(r.score)} size={13} />
-                      <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums">
-                        {Number(r.score).toFixed(1)}
-                      </span>
-                      <Heart ranking={r} userId={userId} onChanged={onChanged} />
-                      {own ? (
-                        <button
-                          type="button"
-                          className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-100 transition-opacity hover:text-bad sm:opacity-0 sm:group-hover:opacity-100"
-                          aria-label={`delete ${r.food}`}
-                          onClick={async () => {
-                            await deleteRanking(r.id);
-                            onChanged();
-                          }}
-                        >
-                          ✕
-                        </button>
-                      ) : (
-                        <span className="w-[22px] shrink-0" aria-hidden />
-                      )}
-                    </span>
-                  </li>
+                    }
+                  />
                 ))}
               </ul>
             </div>

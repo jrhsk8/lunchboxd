@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 import { KeepAccount, SignInCard, useAuth } from './auth';
 import {
-  deleteRanking,
   mergeCategories,
   rankFood,
   renameCategory,
@@ -20,28 +19,23 @@ import { releases, version as siteVersion } from './releases';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
 import {
+  btnPrimary,
   categoryHref,
   CategoryLink,
-  Heart,
+  input,
   kicker,
+  LoadError,
+  label,
   panel,
   profileHref,
+  RankingRow,
   ReviewText,
-  reviewLine,
   scoreTone,
   Tag,
   timeAgo,
   UserLink,
   useRoute,
 } from './ui';
-
-const NEW_SENTINEL = '__new__';
-
-const btnPrimary =
-  'cursor-pointer rounded-lg border border-transparent bg-clay px-4 py-2.5 text-sm font-bold text-field transition-colors hover:bg-clay-hover disabled:cursor-default disabled:opacity-40';
-const input =
-  'rounded-lg border border-edge bg-field px-3 py-2.5 text-sm text-ink placeholder:text-faint focus:border-clay focus:outline-none';
-const label = 'flex flex-col gap-1.5 text-[11px] font-semibold tracking-wider text-dim uppercase';
 
 const byName = (a: CategoryStat, b: CategoryStat) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -69,11 +63,10 @@ function SetupNotice() {
 
 function Site() {
   const { session, username, isAdmin, refreshProfile } = useAuth();
-  const { stats, activity, loaded, version, refresh } = useBoard();
+  const { stats, activity, loaded, error, version, refresh } = useBoard();
   const route = useRoute();
   const [tab, setTab] = useState<'categories' | 'activity'>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
-  const [showTerms, setShowTerms] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   const routeKey =
@@ -83,10 +76,29 @@ function Site() {
         ? `c/${route.name}`
         : route.page === 'tag'
           ? `t/${route.tag}`
-          : 'home';
+          : route.page === 'terms'
+            ? 'terms'
+            : 'home';
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [routeKey]);
+
+  // Every route shared the one static title, so the tab and the browser history
+  // said "Lunchboxd: Food, Ranked" wherever you were. Link previews are a
+  // separate problem the hash router can't solve — a crawler never sees the
+  // fragment — so the static og:* tags in index.html carry those.
+  useEffect(() => {
+    document.title =
+      route.page === 'profile'
+        ? `${route.username} — Lunchboxd`
+        : route.page === 'category'
+          ? `${route.name} — Lunchboxd`
+          : route.page === 'tag'
+            ? `#${route.tag} — Lunchboxd`
+            : route.page === 'terms'
+              ? 'Terms of service — Lunchboxd'
+              : 'Lunchboxd: Food, Ranked';
+  }, [route]);
 
   const totalRankings = stats.reduce((n, c) => n + c.ranking_count, 0);
 
@@ -168,7 +180,9 @@ function Site() {
         </span>
       </header>
 
-      {route.page === 'tag' ? (
+      {route.page === 'terms' ? (
+        <Terms />
+      ) : route.page === 'tag' ? (
         <TagPage tag={route.tag} version={version} />
       ) : route.page === 'category' ? (
         <CategoryPage
@@ -213,11 +227,32 @@ function Site() {
             </section>
 
             <section className="flex min-w-0 flex-col gap-3">
-              <div className="flex gap-1 self-start rounded-(--radius-card) border-2 border-edge bg-raised p-1">
+              {/* A real tablist: these were two plain buttons whose selected
+                  state was carried by background colour alone, so a screen
+                  reader announced two unrelated buttons and said nothing about
+                  which view was showing. Roving tabindex + arrow keys come with
+                  the pattern. */}
+              <div
+                role="tablist"
+                aria-label="board view"
+                className="flex gap-1 self-start rounded-(--radius-card) border-2 border-edge bg-raised p-1"
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                  e.preventDefault();
+                  const next = tab === 'categories' ? 'activity' : 'categories';
+                  setTab(next);
+                  document.getElementById(`tab-${next}`)?.focus();
+                }}
+              >
                 {(['categories', 'activity'] as const).map((t) => (
                   <button
                     key={t}
+                    id={`tab-${t}`}
                     type="button"
+                    role="tab"
+                    aria-selected={tab === t}
+                    aria-controls={`panel-${t}`}
+                    tabIndex={tab === t ? 0 : -1}
                     className={`cursor-pointer rounded-[7px] border-0 px-4 py-2 text-sm font-semibold capitalize transition-colors ${
                       tab === t
                         ? 'bg-clay/15 text-ink'
@@ -230,25 +265,29 @@ function Site() {
                 ))}
               </div>
 
-              {tab === 'categories' ? (
-                <CategoryBoard
-                  stats={stats}
-                  loaded={loaded}
-                  openId={openId}
-                  setOpenId={setOpenId}
-                  version={version}
-                  userId={session?.user.id ?? null}
-                  viewerIsAdmin={isAdmin}
-                  onChanged={refresh}
-                />
-              ) : (
-                <ActivityFeed
-                  activity={activity}
-                  loaded={loaded}
-                  userId={session?.user.id ?? null}
-                  onChanged={refresh}
-                />
-              )}
+              <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
+                {tab === 'categories' ? (
+                  <CategoryBoard
+                    stats={stats}
+                    loaded={loaded}
+                    error={error}
+                    openId={openId}
+                    setOpenId={setOpenId}
+                    version={version}
+                    userId={session?.user.id ?? null}
+                    viewerIsAdmin={isAdmin}
+                    onChanged={refresh}
+                  />
+                ) : (
+                  <ActivityFeed
+                    activity={activity}
+                    loaded={loaded}
+                    error={error}
+                    userId={session?.user.id ?? null}
+                    onChanged={refresh}
+                  />
+                )}
+              </div>
             </section>
           </div>
         </>
@@ -260,13 +299,9 @@ function Site() {
         <span className="text-xs text-faint">
           Lunchboxd — like Letterboxd, but you can eat the subject matter.
         </span>
-        <button
-          type="button"
-          className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint underline hover:text-dim"
-          onClick={() => setShowTerms(true)}
-        >
+        <a href="#/terms" className="text-xs text-faint underline hover:text-dim">
           Terms of service
-        </button>
+        </a>
         <button
           type="button"
           className="cursor-pointer border-0 bg-transparent p-0 text-xs tabular-nums text-faint underline hover:text-dim"
@@ -277,55 +312,50 @@ function Site() {
         </button>
       </footer>
 
-      {showTerms && <Terms onClose={() => setShowTerms(false)} />}
       {showWhatsNew && <WhatsNew onClose={() => setShowWhatsNew(false)} />}
     </div>
   );
 }
 
-function Terms({ onClose }: { onClose: () => void }) {
+/**
+ * The privacy position, at its own URL.
+ *
+ * This was a modal held in component state, so the one page on the site
+ * somebody might want to cite or link — "We do not collect your data" — could
+ * not be linked, bookmarked or shared, and browser back did nothing. Making it
+ * a route also retired the modal's missing focus trap and Escape handling
+ * rather than fixing them.
+ */
+function Terms() {
   return (
-    <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-label="terms of service"
-        className={`${panel} max-h-[85vh] w-full max-w-lg overflow-y-auto p-6`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <p className={`${kicker} m-0`}>Terms of service</p>
-          <button
-            type="button"
-            aria-label="close"
-            className="cursor-pointer border-0 bg-transparent p-1 text-sm text-faint hover:text-ink"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
-        <div className="flex flex-col gap-3 text-sm leading-relaxed text-dim">
-          <p className="m-0">
-            <span className="font-bold text-ink">We do not collect your data.</span> No analytics,
-            no tracking, no ads, no cookies beyond the session that keeps you signed in, and nothing
-            is ever sold or shared with anyone.
-          </p>
-          <p className="m-0">
-            The only things stored are what you post to make the site work: your handle, the
-            categories you invent, the foods you rank, and the hearts you give. If you sign in by
-            email, the address is used solely to send you the sign-in link.
-          </p>
-          <p className="m-0">
-            Everything you post is public — your handle, rankings, and hearts are visible to
-            everyone. You can delete your own rankings at any time.
-          </p>
-          <p className="m-0">
-            Scores are a matter of taste. If the crowd says gas station sushi is a 4.5, the crowd
-            has spoken.
-          </p>
-        </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div>
+        <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
+          ← Back to the board
+        </a>
+        <p className={`${kicker} mt-4 mb-1.5`}>Terms of service</p>
+        <h1 className="m-0 text-[28px] font-bold">The deal</h1>
+      </div>
+      <div className={`${panel} flex flex-col gap-3 p-6 text-sm leading-relaxed text-dim`}>
+        <p className="m-0">
+          <span className="font-bold text-ink">We do not collect your data.</span> No analytics, no
+          tracking, no ads, no cookies beyond the session that keeps you signed in, and nothing is
+          ever sold or shared with anyone. The typeface is served from this site rather than a font
+          CDN, so loading the page tells nobody but us that you were here.
+        </p>
+        <p className="m-0">
+          The only things stored are what you post to make the site work: your handle, the
+          categories you invent, the foods you rank, and the hearts you give. If you sign in by
+          email, the address is used solely to send you the sign-in link.
+        </p>
+        <p className="m-0">
+          Everything you post is public — your handle, rankings, and hearts are visible to everyone.
+          You can edit or delete your own rankings at any time.
+        </p>
+        <p className="m-0">
+          Scores are a matter of taste. If the crowd says gas station sushi is a 4.5, the crowd has
+          spoken.
+        </p>
       </div>
     </div>
   );
@@ -392,8 +422,7 @@ function RankForm({
   stats: CategoryStat[];
   onLogged: () => void;
 }) {
-  const [categoryChoice, setCategoryChoice] = useState(NEW_SENTINEL);
-  const [newCategory, setNewCategory] = useState('');
+  const [category, setCategory] = useState('');
   const [food, setFood] = useState('');
   const [review, setReview] = useState('');
   const [score, setScore] = useState(0);
@@ -401,9 +430,11 @@ function RankForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const creatingNew = categoryChoice === NEW_SENTINEL;
-  const canLog =
-    !busy && score > 0 && food.trim() !== '' && (!creatingNew || newCategory.trim() !== '');
+  const canLog = !busy && score > 0 && food.trim() !== '' && category.trim() !== '';
+  // Whether this name already exists decides the hint under the field, not what
+  // gets sent: rankFood find-or-creates by name either way, and citext makes
+  // the match case-insensitive.
+  const known = stats.some((c) => c.name.toLowerCase() === category.trim().toLowerCase());
 
   async function submit() {
     if (!canLog) return;
@@ -411,8 +442,7 @@ function RankForm({
     setError(null);
     const result = await rankFood({
       userId,
-      categoryId: creatingNew ? undefined : categoryChoice,
-      categoryName: creatingNew ? newCategory : undefined,
+      categoryName: category,
       food,
       score,
       hearted: loved,
@@ -427,40 +457,41 @@ function RankForm({
     setReview('');
     setScore(0);
     setLoved(false);
-    setNewCategory('');
     onLogged();
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {/* One field instead of a select plus a conditional "new category" input.
+          The select held every category that exists with no type-ahead beyond
+          the browser's first-letter jump, so at 200 categories the cheapest
+          path was inventing a near-duplicate — which is exactly the mess the
+          admin merge tool exists to clean up. A datalist gives type-ahead and
+          keeps "type a name nobody has used yet" in the same control, which
+          also retires the NEW_SENTINEL / creatingNew two-field dance. */}
       <label className={label}>
         Category
-        <select
+        <input
           className={input}
-          value={categoryChoice}
-          onChange={(e) => setCategoryChoice(e.target.value)}
-        >
-          <option value={NEW_SENTINEL}>+ New category…</option>
+          list="lunchboxd-categories"
+          placeholder="Pizza, Gas Station Sushi, Soup-Adjacent…"
+          maxLength={60}
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        />
+        <datalist id="lunchboxd-categories">
           {[...stats].sort(byName).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+            <option key={c.id} value={c.name} />
           ))}
-        </select>
+        </datalist>
+        <span className="text-[11px] font-normal tracking-normal normal-case text-faint">
+          {category.trim() === ''
+            ? 'Pick one everyone uses, or invent one.'
+            : known
+              ? 'Joining a category that already exists.'
+              : `Inventing "${category.trim()}" for everybody.`}
+        </span>
       </label>
-
-      {creatingNew && (
-        <label className={label}>
-          Category name
-          <input
-            className={input}
-            placeholder="Pizza, Gas Station Sushi, Soup-Adjacent…"
-            maxLength={60}
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-          />
-        </label>
-      )}
 
       <label className={label}>
         What did you eat?
@@ -527,6 +558,7 @@ function RankForm({
 function CategoryBoard({
   stats,
   loaded,
+  error,
   openId,
   setOpenId,
   version,
@@ -536,6 +568,7 @@ function CategoryBoard({
 }: {
   stats: CategoryStat[];
   loaded: boolean;
+  error: string | null;
   openId: string | null;
   setOpenId: (id: string | null) => void;
   version: number;
@@ -544,6 +577,8 @@ function CategoryBoard({
   onChanged: () => void;
 }) {
   const [sort, setSort] = useState<'rank' | 'az'>('rank');
+
+  if (error) return <LoadError />;
 
   if (!loaded) return <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>;
 
@@ -565,11 +600,21 @@ function CategoryBoard({
     <>
       <div className="mb-1 flex items-center justify-end gap-2">
         <span className="text-[11px] font-semibold tracking-wider text-faint uppercase">Sort</span>
-        <div className="flex gap-0.5 rounded-lg border border-edge bg-raised p-0.5">
+        {/* A radiogroup rather than a tablist: this picks an ordering, it
+            doesn't switch panels, and role="tab" without a tabpanel would
+            announce something that isn't true. */}
+        <div
+          role="radiogroup"
+          aria-label="sort categories"
+          className="flex gap-0.5 rounded-lg border border-edge bg-raised p-0.5"
+        >
           {(['rank', 'az'] as const).map((s) => (
             <button
               key={s}
               type="button"
+              role="radio"
+              aria-checked={sort === s}
+              tabIndex={sort === s ? 0 : -1}
               className={`cursor-pointer rounded-[6px] border-0 px-2.5 py-1 text-xs font-semibold transition-colors ${
                 sort === s ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:text-ink'
               }`}
@@ -783,7 +828,14 @@ function CategoryDetail({
   onChanged: () => void;
   onMerged: (targetId: string) => void;
 }) {
-  const rankings = useCategoryRankings(category.id, version);
+  const { rankings, error } = useCategoryRankings(category.id, version);
+
+  if (error)
+    return (
+      <div className="border-t-2 border-edge px-5 py-4">
+        <LoadError />
+      </div>
+    );
 
   if (rankings === null)
     return <p className="m-0 border-t-2 border-edge px-5 py-4 text-sm text-faint">Loading…</p>;
@@ -828,23 +880,29 @@ function RankingRows({
   rankings,
   userId,
   onChanged,
+  categoryName,
 }: {
   rankings: Ranking[];
   userId: string | null;
   onChanged: () => void;
+  categoryName?: string;
 }) {
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0">
       {rankings.map((r) => (
-        <li
+        <RankingRow
           key={r.id}
+          ranking={r}
+          userId={userId}
+          onChanged={onChanged}
+          controls="owner"
+          categoryName={categoryName}
           className="group flex flex-col gap-1 rounded-lg px-2 py-1.5 hover:bg-raised sm:flex-row sm:items-center sm:gap-3"
-        >
-          <span className="min-w-0 text-sm sm:flex-1">
-            {/* Username gets full display (never truncates). On phones the food
-                wraps onto its own line rather than shortening — three lines is
-                the whole 120-char field at 320px, so the clamp is a guard rail,
-                not a routine cut. Desktop keeps the single truncated line. */}
+          headline={
+            /* Username gets full display (never truncates). On phones the food
+               wraps onto its own line rather than shortening — three lines is
+               the whole 120-char field at 320px, so the clamp is a guard rail,
+               not a routine cut. Desktop keeps the single truncated line. */
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:flex-nowrap">
               <span className="shrink-0 font-medium">
                 <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
@@ -854,38 +912,8 @@ function RankingRows({
                 {r.food}
               </span>
             </span>
-            {r.review && (
-              <span className={reviewLine} title={r.review}>
-                "<ReviewText text={r.review} />"
-              </span>
-            )}
-          </span>
-          <span className="flex items-center gap-3 sm:contents">
-            <span className="w-14 shrink-0 text-left text-xs text-faint tabular-nums sm:text-right">
-              {timeAgo(r.created_at)}
-            </span>
-            <Stars value={Number(r.score)} size={13} />
-            <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums">
-              {Number(r.score).toFixed(1)}
-            </span>
-            <Heart ranking={r} userId={userId} onChanged={onChanged} />
-            {userId === r.user_id ? (
-              <button
-                type="button"
-                className="w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-100 transition-opacity hover:text-bad sm:opacity-0 sm:group-hover:opacity-100"
-                aria-label={`delete ${r.food}`}
-                onClick={async () => {
-                  await deleteRanking(r.id);
-                  onChanged();
-                }}
-              >
-                ✕
-              </button>
-            ) : (
-              <span className="w-[22px] shrink-0" aria-hidden />
-            )}
-          </span>
-        </li>
+          }
+        />
       ))}
     </ul>
   );
@@ -907,8 +935,10 @@ function CategoryPage({
   viewerIsAdmin: boolean;
   onChanged: () => void;
 }) {
-  const stat = useCategoryStat(name, version);
-  const rankings = useCategoryRankings(stat?.id ?? null, version);
+  const { stat, error } = useCategoryStat(name, version);
+  const { rankings } = useCategoryRankings(stat?.id ?? null, version);
+
+  if (error) return <LoadError className="mx-auto max-w-lg" />;
 
   if (stat === undefined)
     return <p className="m-0 py-16 text-center text-sm text-faint">Loading…</p>;
@@ -989,7 +1019,7 @@ function CategoryPage({
 /** Every review carrying a given #hashtag, newest first. */
 function TagPage({ tag, version }: { tag: string; version: number }) {
   const clean = tag.toLowerCase().replace(/[^a-z0-9_]/g, '');
-  const rows = useTagReviews(tag, version);
+  const { rows, error } = useTagReviews(tag, version);
 
   return (
     <div className="flex flex-col gap-6">
@@ -1008,7 +1038,9 @@ function TagPage({ tag, version }: { tag: string; version: number }) {
         </p>
       </div>
 
-      {rows === null ? (
+      {error ? (
+        <LoadError />
+      ) : rows === null ? (
         <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
       ) : rows.length === 0 ? (
         <div className={`${panel} px-6 py-12 text-center`}>
@@ -1060,14 +1092,18 @@ function TagPage({ tag, version }: { tag: string; version: number }) {
 function ActivityFeed({
   activity,
   loaded,
+  error,
   userId,
   onChanged,
 }: {
   activity: ReturnType<typeof useBoard>['activity'];
   loaded: boolean;
+  error: string | null;
   userId: string | null;
   onChanged: () => void;
 }) {
+  if (error) return <LoadError />;
+
   if (!loaded) return <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>;
 
   if (activity.length === 0) {
@@ -1083,13 +1119,15 @@ function ActivityFeed({
     <div className={`${panel} px-5 py-3`}>
       <ul className="m-0 flex list-none flex-col p-0">
         {activity.map((a) => (
-          <li
+          <RankingRow
             key={a.id}
+            ranking={a}
+            userId={userId}
+            onChanged={onChanged}
             className="flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
-          >
-            <span className="min-w-0 text-sm sm:flex-1">
-              {/* Wraps on phones: truncated to one line the sentence always lost
-                  its tail — the category, which is the link out of the feed. */}
+            headline={
+              /* Wraps on phones: truncated to one line the sentence always lost
+                 its tail — the category, which is the link out of the feed. */
               <span className="block break-words sm:truncate">
                 <UserLink
                   username={a.profiles?.username ?? null}
@@ -1104,23 +1142,8 @@ function ActivityFeed({
                   <span className="font-semibold text-clay">?</span>
                 )}
               </span>
-              {a.review && (
-                <span className={reviewLine} title={a.review}>
-                  "<ReviewText text={a.review} />"
-                </span>
-              )}
-            </span>
-            <span className="flex items-center gap-3 sm:contents">
-              <span className="w-14 shrink-0 text-left text-xs text-faint tabular-nums sm:text-right">
-                {timeAgo(a.created_at)}
-              </span>
-              <Stars value={Number(a.score)} size={13} />
-              <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums">
-                {Number(a.score).toFixed(1)}
-              </span>
-              <Heart ranking={a} userId={userId} onChanged={onChanged} />
-            </span>
-          </li>
+            }
+          />
         ))}
       </ul>
     </div>

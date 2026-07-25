@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from './supabase';
+import { btnPrimary, input as sharedInput } from './ui';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -54,8 +55,8 @@ export function useAuth() {
   return { session, username, isAdmin, refreshProfile };
 }
 
-const input =
-  'w-full rounded-lg border border-edge bg-field px-3 py-2.5 text-sm text-ink placeholder:text-faint focus:border-clay focus:outline-none';
+// The shared control idioms, plus the full-width the auth cards want.
+const input = `w-full ${sharedInput}`;
 
 /**
  * Guests can claim their account Letterboxd-style: attach an email, confirm
@@ -125,8 +126,6 @@ export function KeepAccount() {
     </span>
   );
 }
-const btnPrimary =
-  'cursor-pointer rounded-lg border border-transparent bg-clay px-4 py-2.5 text-sm font-bold text-field transition-colors hover:bg-clay-hover disabled:cursor-default disabled:opacity-40';
 
 /** Sign-in card: guest-first (pick a handle, start ranking), magic link second. */
 export function SignInCard() {

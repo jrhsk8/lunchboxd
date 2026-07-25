@@ -1,0 +1,7 @@
+# Everything here is public and meant to be found.
+#
+# No sitemap: routing is hash-based (#/c/pizza, #/u/jack) and a fragment never
+# reaches the server, so a sitemap could only ever list the root — which the
+# crawler finds anyway.
+User-agent: *
+Allow: /
