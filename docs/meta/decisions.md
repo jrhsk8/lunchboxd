@@ -2,6 +2,44 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-25 — Cross-user likes are reinstated, under stricter rules than the design that was removed
+
+Reverses the 2026-07-23 entry below, which ended "don't reintroduce cross-user likes without a ruling". This is the ruling.
+
+What was torn out then was **likes as hearts** — one mark, anybody hearting anybody, which made "loved it" ambiguous about whose opinion it carried. What went back is a **second, separate mark**: `hearted` is untouched and still the author's own, and a like is what somebody else gives. Two marks with two meanings was never the thing that was rejected; one mark doing two jobs was.
+
+Three rules make it stricter than what was removed, and each has a reason that isn't fashion. **Email accounts only** — anonymous signup is free and uncaptcha'd (#28), so a guest-likeable count is stuffable by one person with a handful of browser sessions. This mutes about a quarter of the accounts that have ever ranked, which was accepted deliberately: it gives "Keep account" its first concrete reason to exist. **No self-likes**, because `hearted` already is that. **Any edit to the food, score or review clears the likes** — a like is for what was on screen when it was given, and the accepted cost is that fixing a typo in a review costs the likes it earned. Hearting and pinning are not edits and don't clear anything.
+
+The email gate reads `caller_has_email()` (SECURITY DEFINER over `auth.users`) rather than the JWT's `is_anonymous` claim, which stays stale until the session refreshes and would refuse somebody who had just confirmed their address. The client's copy of the check may lean on the claim, because being over-invited is harmless; **never invert that to grant liking from the claim**. Migrations `20260725014000_likes.sql` and `20260725021000_likes_read_the_account.sql`; the surface is in app-shell.md § Component map.
+
+### 2026-07-25 — The calling card ports maxout.art's shape, not its stats
+
+Lifted from `apps/play/src/identity/` in nes-tetris-trainer: a closed stat vocabulary, three slots, a pure resolver with its own tests, and one component every surface reuses. What was **not** ported is the stat list — maxout's numbers are about Tetris, and more to the point they're counters, which is the wrong shape here. The median eater has four rankings; a card of counters would read `4 / 1 / 0` and say nothing. So the vocabulary is fourteen keys mixing counters with **named** stats — most-ranked category, best and worst food, kindest and harshest category — and the default trio is average / most-ranked category / rankings.
+
+Two rules fell out of the small numbers. Kindest and harshest need at least two rankings in a category, or a single 5.0 crowns a category somebody has barely eaten in — the same sample-size problem the leaderboard's Bayesian prior exists to solve. And **a dash is never a zero**: no average yet is an absence, nought likes is a fact, and they render differently.
+
+The accent colour is Supporter-gated and resolved on **read** (`resolveAccent`), not on write, so a supporter whose status lapses keeps their stored choice and simply stops rendering it. Migration `20260725022000_calling_card.sql`; the core is `src/calling-card.ts`, tested.
+
+### 2026-07-25 — The Eaters tab is a tab, not a route
+
+Owner-ruled after grilling. A list of people is exactly the kind of thing somebody links to, and the tab can't be linked to — that was named as the cost and accepted anyway: it belongs with the board rather than beside it, and Categories and Activity are tab state for the same reason.
+
+Membership is **anyone with at least one ranking**. A card for a profile that has never ranked is a dash in every slot, and roughly a third of profiles are signups that logged nothing. The rule also removes banned accounts for free — `ban_profile` deletes the target's rankings, so the count is zero and the row is gone; there is no `banned_at` filter for a future reader to forget.
+
+Entries are **full calling cards rather than compact rows**, against the denser idiom the category board would suggest. The card was ported to have a second home, and this is it: the profile shows you your own, and the Eaters tab is the only place the three stats somebody chose about themselves are visible to anybody else. Rows would have left the studio a private toy.
+
+The four sort orders and the 24-at-a-time cap both run in the database, through the `eaters` view — sorting seventy people in the client would mean fetching every card to draw a third of them, and the cap would be a slice rather than a limit. Real pagination (#11) stays deferred; "Show more" is not it.
+
+### 2026-07-25 — Notifications are a page, and that choice bought the table
+
+Three surfaces were prototyped against the live shell: a header badge with a dropdown, a page at `#/notifications`, and a passive line on your own profile. **They disagreed about schema, not pixels, and that was the decision.** A badge is only ever a count, so it needs one `seen_at` timestamp on the profile row and nothing else. A page that lists items invites marking one of them read, which is a table. Owner-ruled for the page, knowing that.
+
+What the table doesn't need is a retention rule. Two triggers keep notifications in step with likes, and a like already dies when it's taken back, when the ranking is deleted, and when the ranking is edited — so nothing accumulates and there is nothing to prune. `kind` is a one-value check today rather than no column at all, because this page is where follows (#36) and reports (#37) will land: adding a value to a check is a migration, teaching a like-shaped table to hold a follow is a rewrite.
+
+It is the **first private table on the site**, and the grants say so more than the policies do: no `anon` grant at all, select scoped to your own rows, **insert and delete granted to nobody** (both triggers are SECURITY DEFINER), and update column-scoped to `read_at`. So a notification can't be forged, can't be quietly deleted by the person it's about, and can't have its sender rewritten. Migration `20260725030000_notifications.sql`.
+
+**Email notification stays out.** The Terms collect an address to send sign-in links; using it to tell somebody their lunch was liked is a new outbound use of it and needs its own ruling, not a ride-along.
+
 ### 2026-07-25 — The version comes off the footer; the changelog stays in the repo
 
 Owner-asked: "remove the versioning from the bottom of the website that's just for me." The `v0.6.0` footer button and the What's-new dialog it opened are gone, along with the `showWhatsNew` state and the aliased `releases` import — with no entry point, the dialog was unreachable code. This reverses the presentation half of the 2026-07-24 ruling below; the source-of-truth half stands. `src/releases.ts` is kept and still bumped in step with `package.json` by hand, now as a repo-internal record rather than something the site shows.

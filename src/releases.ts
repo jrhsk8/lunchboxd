@@ -21,6 +21,17 @@ export type Release = {
 
 export const releases: Release[] = [
   {
+    version: '0.7.0',
+    date: '2026-07-25',
+    notes: [
+      "You can like somebody else's ranking. The heart is unchanged — that's still the author's own mark on their own food — and the like is the one everyone else gives. It needs an email on your account, so if you're eating as a guest, use \"Keep account\" first. Editing a ranking clears the likes it had: they were for what it used to say.",
+      'Your profile has a calling card — your handle and three stats you pick from fourteen. Open the studio on your own profile to choose them. Supporters can pick a colour for theirs.',
+      'A third tab, Eaters: everybody who has ranked something, as their calling card. Sort by who ate most recently, who has ranked the most, who has the most likes, or A–Z.',
+      'The bell in the header lights up when somebody likes one of your rankings, and the notifications page keeps the list. Nobody is emailed about any of this — the address you signed in with is still only used to sign you in.',
+      'Guests eat under a serial number now — guest-4f2a1 and the like. Add an email whenever you want and you can pick a handle that survives a new browser, which the old guest names could not.',
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-07-25',
     notes: [
