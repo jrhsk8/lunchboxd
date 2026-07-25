@@ -9,6 +9,7 @@ import {
   parseHash,
   PG,
   plural,
+  reviewPieces,
   timeAgo,
   writeError,
 } from './text';
@@ -86,6 +87,60 @@ describe('cleanHashtag', () => {
   it('gives back nothing when nothing survives', () => {
     expect(cleanHashtag('!!!')).toBe('');
     expect(cleanHashtag('')).toBe('');
+  });
+});
+
+describe('reviewPieces', () => {
+  // The half of the hashtag rendering that used to be unreachable from a test:
+  // HASHTAG_RE was pinned above, and the index arithmetic that slices a review
+  // around its matches sat inside a component. Every case below is a review
+  // somebody could write, and getting the arithmetic wrong eats characters of
+  // it.
+  const text = (pieces: ReturnType<typeof reviewPieces>) =>
+    pieces.map((p) => ('hashtag' in p ? `#${p.hashtag}` : p.text)).join('');
+
+  it('gives back plain text unbroken', () => {
+    expect(reviewPieces('no hashtags here')).toEqual([{ text: 'no hashtags here' }]);
+  });
+
+  it('splits around a hashtag, keeping the space before it', () => {
+    expect(reviewPieces('still a #classic')).toEqual([
+      { text: 'still a ' },
+      { hashtag: 'classic' },
+    ]);
+  });
+
+  it('handles a hashtag at the very start', () => {
+    expect(reviewPieces('#classic, honestly')).toEqual([
+      { hashtag: 'classic' },
+      { text: ', honestly' },
+    ]);
+  });
+
+  it('keeps the text between two hashtags', () => {
+    expect(reviewPieces('#cold and #sad')).toEqual([
+      { hashtag: 'cold' },
+      { text: ' and ' },
+      { hashtag: 'sad' },
+    ]);
+  });
+
+  it('treats a glued # as ordinary text', () => {
+    expect(reviewPieces('a#b')).toEqual([{ text: 'a#b' }]);
+  });
+
+  it('loses nothing, whatever the review says', () => {
+    for (const review of [
+      'plain',
+      '#one',
+      'a #one b #two c',
+      '#one#two',
+      'http://x.com/page#frag and #real',
+      '#',
+      '',
+    ]) {
+      expect(text(reviewPieces(review))).toBe(review);
+    }
   });
 });
 

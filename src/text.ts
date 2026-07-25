@@ -59,6 +59,33 @@ export function cleanHashtag(hashtag: string): string {
   return hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
 }
 
+/** A piece of a review: either plain text, or a hashtag to link. */
+export type ReviewPiece = { text: string } | { hashtag: string };
+
+/**
+ * A review split into the pieces it renders as, in order.
+ *
+ * The index arithmetic — where a match starts once its boundary character is
+ * counted, and where the text between two hashtags begins — used to live inside
+ * `ReviewText`, which meant `HASHTAG_RE` was tested and the code consuming it
+ * was not. Getting it wrong drops or repeats characters of somebody's review
+ * (#108).
+ */
+export function reviewPieces(text: string): ReviewPiece[] {
+  const pieces: ReviewPiece[] = [];
+  let last = 0;
+  for (const m of text.matchAll(HASHTAG_RE)) {
+    // Group 1 is the boundary character the pattern had to consume to prove the
+    // '#' wasn't glued to a word; it belongs to the text before the hashtag.
+    const start = (m.index ?? 0) + m[1].length;
+    if (start > last) pieces.push({ text: text.slice(last, start) });
+    pieces.push({ hashtag: m[2] });
+    last = start + 1 + m[2].length;
+  }
+  if (last < text.length) pieces.push({ text: text.slice(last) });
+  return pieces;
+}
+
 /**
  * The word to use for a count: `one` at exactly one, `many` everywhere else —
  * zero included, which is the case the inline ternaries kept getting right by

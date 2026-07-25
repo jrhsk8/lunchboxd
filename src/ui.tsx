@@ -31,7 +31,7 @@ import {
   type Ranking,
 } from './data';
 import { StarInput, Stars } from './Stars';
-import { HASHTAG_RE, parseHash, plural, timeAgo, type Route } from './text';
+import { parseHash, plural, reviewPieces, timeAgo, type Route } from './text';
 import { profileTags, TAG_STYLES, type ProfileTags, type TagKind } from './tags';
 
 export { timeAgo } from './text';
@@ -147,28 +147,31 @@ function hashtagHref(hashtag: string) {
   return `#/t/${encodeURIComponent(hashtag.toLowerCase())}`;
 }
 
-/** Renders review text with #hashtags turned into links to their own page. */
+/**
+ * Renders review text with #hashtags turned into links to their own page.
+ *
+ * The splitting is `reviewPieces` in text.ts, where it is tested; this decides
+ * only what a piece looks like.
+ */
 export function ReviewText({ text }: { text: string }) {
-  const nodes: ReactNode[] = [];
-  let last = 0;
-  for (const m of text.matchAll(HASHTAG_RE)) {
-    const tagStart = (m.index ?? 0) + m[1].length;
-    if (tagStart > last) nodes.push(text.slice(last, tagStart));
-    const tag = m[2];
-    nodes.push(
-      <a
-        key={tagStart}
-        href={hashtagHref(tag)}
-        className="font-semibold text-clay hover:underline"
-        onClick={(e) => e.stopPropagation()}
-      >
-        #{tag}
-      </a>,
-    );
-    last = tagStart + 1 + tag.length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return <>{nodes}</>;
+  return (
+    <>
+      {reviewPieces(text).map((piece, i) =>
+        'hashtag' in piece ? (
+          <a
+            key={i}
+            href={hashtagHref(piece.hashtag)}
+            className="font-semibold text-clay hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            #{piece.hashtag}
+          </a>
+        ) : (
+          piece.text
+        ),
+      )}
+    </>
+  );
 }
 
 /**
