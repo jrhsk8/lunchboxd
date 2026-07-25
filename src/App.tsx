@@ -60,6 +60,7 @@ import {
   RankingRow,
   ReviewText,
   scoreTone,
+  SortToggle,
   Tag,
   timeAgo,
   useRoute,
@@ -345,6 +346,12 @@ function Site() {
   );
 }
 
+const CATEGORY_SORTS = [
+  { key: 'rank', label: 'Top rated' },
+  { key: 'az', label: 'A–Z' },
+] as const;
+type CategorySort = (typeof CATEGORY_SORTS)[number]['key'];
+
 const EATER_SORTS: { key: EaterSort; label: string }[] = [
   { key: 'recent', label: 'Recent' },
   { key: 'rankings', label: 'Rankings' },
@@ -371,38 +378,20 @@ function EatersTab({ version }: { version: number }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Four settings where the board next door has two, so the labels are
-          short and the row wraps rather than scrolling sideways. A radiogroup,
-          not a tablist: it picks an ordering, it doesn't switch panels. */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="text-[11px] font-semibold tracking-wider text-faint uppercase">Sort</span>
-        <div
-          role="radiogroup"
-          aria-label="sort eaters"
-          className="flex flex-wrap gap-0.5 rounded-lg border border-edge bg-raised p-0.5"
-        >
-          {EATER_SORTS.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              role="radio"
-              aria-checked={sort === s.key}
-              tabIndex={sort === s.key ? 0 : -1}
-              className={`cursor-pointer rounded-[6px] border-0 px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
-                sort === s.key ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:text-ink'
-              }`}
-              onClick={() => {
-                setSort(s.key);
-                // A new ordering is a new list: keeping the old depth would
-                // quietly show three pages of it.
-                setShown(EATERS_PAGE);
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Four settings where the board next door has two, so the row wraps
+          rather than scrolling sideways. */}
+      <SortToggle
+        label="sort eaters"
+        options={EATER_SORTS}
+        value={sort}
+        wrap
+        onChange={(key) => {
+          setSort(key);
+          // A new ordering is a new list: keeping the old depth would quietly
+          // show three pages of it.
+          setShown(EATERS_PAGE);
+        }}
+      />
 
       {error ? (
         <LoadError />
@@ -830,7 +819,7 @@ function CategoryBoard({
   viewerIsAdmin: boolean;
   onChanged: () => void;
 }) {
-  const [sort, setSort] = useState<'rank' | 'az'>('rank');
+  const [sort, setSort] = useState<CategorySort>('rank');
 
   if (error) return <LoadError />;
 
@@ -854,32 +843,13 @@ function CategoryBoard({
 
   return (
     <>
-      <div className="mb-1 flex items-center justify-end gap-2">
-        <span className="text-[11px] font-semibold tracking-wider text-faint uppercase">Sort</span>
-        {/* A radiogroup rather than a tablist: this picks an ordering, it
-            doesn't switch panels, and role="tab" without a tabpanel would
-            announce something that isn't true. */}
-        <div
-          role="radiogroup"
-          aria-label="sort categories"
-          className="flex gap-0.5 rounded-lg border border-edge bg-raised p-0.5"
-        >
-          {(['rank', 'az'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={sort === s}
-              tabIndex={sort === s ? 0 : -1}
-              className={`cursor-pointer rounded-[6px] border-0 px-2.5 py-1 text-xs font-semibold transition-colors ${
-                sort === s ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:text-ink'
-              }`}
-              onClick={() => setSort(s)}
-            >
-              {s === 'rank' ? 'Top rated' : 'A–Z'}
-            </button>
-          ))}
-        </div>
+      <div className="mb-1">
+        <SortToggle
+          label="sort categories"
+          options={CATEGORY_SORTS}
+          value={sort}
+          onChange={setSort}
+        />
       </div>
       {ordered.map((c, i) => {
         const avg = c.avg_score === null ? null : Number(c.avg_score);

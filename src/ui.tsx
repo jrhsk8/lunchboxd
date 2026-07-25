@@ -289,6 +289,83 @@ export function ProfileLink({
 }
 
 /**
+ * The ordering switch: the board's Top-rated/A–Z pair and the Eaters tab's
+ * four-way sort, which were the same twenty-eight lines of markup, ARIA and
+ * class strings written twice and already drifted in padding and in whether
+ * they wrapped (#84).
+ *
+ * A radiogroup rather than a tablist: it picks an ordering, it doesn't switch
+ * panels, and `role="tab"` without a tabpanel announces something untrue.
+ *
+ * The arrow keys are the reason this is one component. A radiogroup takes one
+ * tab stop and moves between its options with arrows — both copies had the
+ * roving `tabIndex` and neither handled the keys, so a keyboard could reach the
+ * selected option and could not reach any other. The tablist in the same file
+ * had it right, which is where the pattern should have come from (#110).
+ */
+export function SortToggle<T extends string>({
+  label: groupLabel,
+  options,
+  value,
+  onChange,
+  wrap = false,
+}: {
+  label: string;
+  options: readonly { key: T; label: string }[];
+  value: T;
+  onChange: (key: T) => void;
+  wrap?: boolean;
+}) {
+  const refs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <span className="text-[11px] font-semibold tracking-wider text-faint uppercase">Sort</span>
+      <div
+        role="radiogroup"
+        aria-label={groupLabel}
+        className={`flex gap-0.5 rounded-lg border border-edge bg-raised p-0.5 ${wrap ? 'flex-wrap' : ''}`}
+        onKeyDown={(e) => {
+          const step =
+            e.key === 'ArrowRight' || e.key === 'ArrowDown'
+              ? 1
+              : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+                ? -1
+                : 0;
+          if (step === 0) return;
+          e.preventDefault();
+          const at = options.findIndex((o) => o.key === value);
+          const next = options[(at + step + options.length) % options.length];
+          onChange(next.key);
+          // Selection follows focus, so the focus has to follow the selection
+          // or the next arrow press starts from the option left behind.
+          refs.current[next.key]?.focus();
+        }}
+      >
+        {options.map((o) => (
+          <button
+            key={o.key}
+            ref={(el) => {
+              refs.current[o.key] = el;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={value === o.key}
+            tabIndex={value === o.key ? 0 : -1}
+            className={`cursor-pointer rounded-[6px] border-0 px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
+              value === o.key ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:text-ink'
+            }`}
+            onClick={() => onChange(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * The top of every page that isn't the board: the way back, the kicker naming
  * what kind of page this is, the title, and an optional line under it.
  *
