@@ -1,6 +1,22 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
-import { deleteRanking, setHearted, setTopPick, updateRanking, type Ranking } from './data';
+import {
+  deleteRanking,
+  likeCount,
+  setHearted,
+  setLike,
+  setTopPick,
+  updateRanking,
+  type Ranking,
+} from './data';
 import { StarInput, Stars } from './Stars';
 import { HASHTAG_RE, timeAgo } from './text';
 
@@ -334,7 +350,15 @@ export function RankingRow({
     <li className={className}>
       <span className="min-w-0 text-sm sm:flex-1">
         {headline}
-        {ranking.review && <ReviewQuote text={ranking.review} />}
+        {/* The like leads the second line, in a fixed column, so it sits at the
+            same x on every row whether or not there's a review beside it —
+            owner-ruled 2026-07-25 (#45). It shares the review's line rather
+            than taking one of its own: a line per row cost the list ~40% of
+            its height at twelve rows. */}
+        <span className="mt-0.5 flex items-start gap-3">
+          <LikeControl ranking={ranking} userId={userId} onChanged={onChanged} />
+          {ranking.review && <ReviewQuote text={ranking.review} className="min-w-0 flex-1" />}
+        </span>
       </span>
       <span className="flex items-center gap-3 sm:contents">
         <span className="w-14 shrink-0 text-left text-xs text-faint tabular-nums sm:text-right">
@@ -389,6 +413,145 @@ export function RankingRow({
           ))}
       </span>
     </li>
+  );
+}
+
+/**
+ * Who the viewer is, as far as liking is concerned, and which rankings they've
+ * already liked.
+ *
+ * A context rather than a prop threaded through `RankingRows`, `ActivityFeed`
+ * and `ProfilePage`: every row on every surface needs the same two answers,
+ * and `useMyLikes` is one query for the whole page (see data.ts).
+ *
+ * `viewer` is what the UI *offers*; the database has the final say. The guest
+ * check reads the JWT's `is_anonymous`, which stays true until the session
+ * refreshes after an email is confirmed — so a just-confirmed account can be
+ * offered the invitation it no longer needs. Harmless in that direction: the
+ * insert policy calls `caller_has_email()` over `auth.users` and lets them
+ * through. Never invert this to *grant* on the claim.
+ */
+export type LikeViewer = 'out' | 'guest' | 'email';
+const LikesContext = createContext<{ liked: Set<string>; viewer: LikeViewer }>({
+  liked: new Set(),
+  viewer: 'out',
+});
+
+export function LikesProvider({
+  liked,
+  viewer,
+  children,
+}: {
+  liked: Set<string>;
+  viewer: LikeViewer;
+  children: ReactNode;
+}) {
+  const value = useMemo(() => ({ liked, viewer }), [liked, viewer]);
+  return <LikesContext.Provider value={value}>{children}</LikesContext.Provider>;
+}
+
+/** The width the like column holds on every row, review or not, so they line up. */
+const likeColumn = 'w-[74px] shrink-0 text-xs';
+
+/**
+ * The like: the mark other people put on your ranking, as against the heart,
+ * which is the mark you put on your own.
+ *
+ * Deliberately not a heart and not gold — the row already carries one of each
+ * and a second heart in a different colour read as a bug, not a distinction
+ * (#45). It's a verb and a count, in the clay that every other link on the
+ * site uses.
+ *
+ * Three viewers, three answers, and only one of them is a refusal in tone: a
+ * guest who presses this is being shown the reason to keep their account,
+ * which is the strongest one the site has (#42).
+ */
+function LikeControl({
+  ranking,
+  userId,
+  onChanged,
+}: {
+  ranking: Ranking;
+  userId: string | null;
+  onChanged: () => void;
+}) {
+  const { liked, viewer } = useContext(LikesContext);
+  const own = userId !== null && userId === ranking.user_id;
+  const mine = liked.has(ranking.id);
+  // Optimistic, like the heart: the write round-trips and the whole board
+  // refetches before the count would move otherwise.
+  const [pending, setPending] = useState<boolean | null>(null);
+  const [seen, setSeen] = useState(mine);
+  const [invitation, setInvitation] = useState<string | null>(null);
+  if (seen !== mine) {
+    setSeen(mine);
+    setPending(null);
+  }
+  const on = pending ?? mine;
+  const count = likeCount(ranking) + (pending === null ? 0 : pending ? 1 : -1);
+
+  // Your own ranking can't be liked (no self-likes, #42), so the column holds
+  // the count alone — and holds its width regardless, or the reviews beside it
+  // would start at a different x on your own rows.
+  if (own) {
+    return (
+      <span className={`${likeColumn} pt-0.5 text-faint tabular-nums`}>
+        {count > 0 ? `${count} ${count === 1 ? 'like' : 'likes'}` : ''}
+      </span>
+    );
+  }
+
+  return (
+    <span className={`relative ${likeColumn}`}>
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={on ? `unlike ${ranking.food}` : `like ${ranking.food}`}
+        title={on ? 'You liked this — click to take it back' : 'Like this'}
+        className={`cursor-pointer rounded border-0 bg-transparent p-0 text-left font-semibold tabular-nums transition-colors ${
+          on ? 'text-clay hover:text-clay-hover' : 'text-faint hover:text-clay'
+        }`}
+        onClick={async () => {
+          if (viewer !== 'email') {
+            setInvitation(
+              viewer === 'out'
+                ? 'Sign in to like this. An email is all it takes.'
+                : 'Likes need an email on your account. Use “Keep account” and this one is yours for good.',
+            );
+            return;
+          }
+          const next = !on;
+          setPending(next);
+          const { error } = await setLike(ranking.id, userId as string, next);
+          if (error) {
+            // Rejected — a ban, a stale session, a policy the client didn't
+            // know about. Put the count back and say what happened.
+            setPending(null);
+            setInvitation(error);
+            return;
+          }
+          onChanged();
+        }}
+      >
+        {on ? 'Liked' : 'Like'}
+        {count > 0 && <span className="ml-1 font-normal opacity-70">{count}</span>}
+      </button>
+      {/* Absolute, so an invitation nobody asked for can't reflow the list
+          under the finger that's still on the screen — and so it can be wider
+          than the 74px column it hangs off. */}
+      {invitation && (
+        <span className="absolute top-full left-0 z-10 mt-1 block w-56 rounded-md border border-edge bg-panel px-2 py-1.5 leading-snug font-normal text-dim shadow-lg">
+          {invitation}{' '}
+          <button
+            type="button"
+            className="cursor-pointer border-0 bg-transparent p-0 font-semibold text-clay hover:underline"
+            onClick={() => setInvitation(null)}
+          >
+            OK
+          </button>
+        </span>
+      )}
+    </span>
   );
 }
 

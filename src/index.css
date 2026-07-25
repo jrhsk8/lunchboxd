@@ -73,6 +73,16 @@ html {
   color-scheme: dark;
 }
 
+/* The calling card's Supporter tint. The swatch arrives as `--card-accent` from
+   `accentToken`, and is mixed rather than applied flat so it reads as a tinted
+   panel rather than a coloured box — the card sits next to a handle, not on its
+   own. Nothing sets the property unless `resolveAccent` returned a swatch, so a
+   free (or lapsed) card keeps the plain panel ground with no extra rule. */
+.card-accent {
+  background-color: color-mix(in oklab, var(--card-accent) 12%, var(--color-panel));
+  border-color: color-mix(in oklab, var(--card-accent) 40%, var(--color-edge));
+}
+
 body {
   margin: 0;
   min-height: 100vh;

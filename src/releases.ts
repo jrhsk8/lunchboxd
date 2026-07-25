@@ -1,14 +1,15 @@
 /**
  * What has shipped to the site, newest first.
  *
- * This file is the single source of truth for the version: the footer shows
- * `releases[0].version`. Adding a release means putting a new entry at the top
- * and bumping `package.json`'s version to match — nothing derives one from the
- * other, so they drift silently if you only do one.
+ * Nothing renders this any more: the footer's version button and its What's-new
+ * dialog were removed on owner's ruling that the version is a detail for him,
+ * not for visitors. The file stays as the changelog of record — the single
+ * source of truth for the version, kept in step with `package.json` by hand,
+ * since nothing derives one from the other.
  *
- * Notes are user-facing copy and follow docs/writing/voice.md: plain sentences,
- * the site's own vocabulary (ranking, category, handle, loved it), no
- * exclamation points. Changes nobody outside the repo can see — docs, deploy
+ * Notes read as user-facing copy and follow docs/writing/voice.md: plain
+ * sentences, the site's own vocabulary (ranking, category, handle, loved it),
+ * no exclamation points. Changes nobody outside the repo can see — docs, deploy
  * plumbing, refactors — don't belong here.
  */
 export type Release = {

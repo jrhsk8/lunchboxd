@@ -32,6 +32,13 @@ export type Database = {
             foreignKeyName: 'categories_created_by_fkey';
             columns: ['created_by'];
             isOneToOne: false;
+            referencedRelation: 'profile_card_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'categories_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
             referencedRelation: 'profile_stats';
             referencedColumns: ['user_id'];
           },
@@ -44,9 +51,63 @@ export type Database = {
           },
         ];
       };
+      likes: {
+        Row: {
+          created_at: string;
+          id: string;
+          ranking_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          ranking_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          ranking_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'likes_ranking_id_fkey';
+            columns: ['ranking_id'];
+            isOneToOne: false;
+            referencedRelation: 'rankings';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'likes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profile_card_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'likes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profile_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'likes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           banned_at: string | null;
+          card_accent: string | null;
+          card_slot_1: string | null;
+          card_slot_2: string | null;
+          card_slot_3: string | null;
           created_at: string;
           id: string;
           is_admin: boolean;
@@ -56,6 +117,10 @@ export type Database = {
         };
         Insert: {
           banned_at?: string | null;
+          card_accent?: string | null;
+          card_slot_1?: string | null;
+          card_slot_2?: string | null;
+          card_slot_3?: string | null;
           created_at?: string;
           id: string;
           is_admin?: boolean;
@@ -65,6 +130,10 @@ export type Database = {
         };
         Update: {
           banned_at?: string | null;
+          card_accent?: string | null;
+          card_slot_1?: string | null;
+          card_slot_2?: string | null;
+          card_slot_3?: string | null;
           created_at?: string;
           id?: string;
           is_admin?: boolean;
@@ -127,6 +196,13 @@ export type Database = {
             foreignKeyName: 'rankings_user_id_fkey';
             columns: ['user_id'];
             isOneToOne: false;
+            referencedRelation: 'profile_card_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'rankings_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
             referencedRelation: 'profile_stats';
             referencedColumns: ['user_id'];
           },
@@ -157,6 +233,13 @@ export type Database = {
             foreignKeyName: 'categories_created_by_fkey';
             columns: ['created_by'];
             isOneToOne: false;
+            referencedRelation: 'profile_card_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'categories_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
             referencedRelation: 'profile_stats';
             referencedColumns: ['user_id'];
           },
@@ -168,6 +251,31 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      profile_card_stats: {
+        Row: {
+          avg_score: number | null;
+          best_food: string | null;
+          best_score: number | null;
+          category_count: number | null;
+          created_at: string | null;
+          harshest_category: string | null;
+          harshest_score: number | null;
+          hearts_given: number | null;
+          invented_count: number | null;
+          kindest_category: string | null;
+          kindest_score: number | null;
+          likes_given: number | null;
+          likes_received: number | null;
+          ranking_count: number | null;
+          review_count: number | null;
+          top_category: string | null;
+          top_category_count: number | null;
+          user_id: string | null;
+          worst_food: string | null;
+          worst_score: number | null;
+        };
+        Relationships: [];
       };
       profile_stats: {
         Row: {
@@ -182,6 +290,7 @@ export type Database = {
     };
     Functions: {
       ban_profile: { Args: { target: string }; Returns: undefined };
+      caller_has_email: { Args: never; Returns: boolean };
       delete_category: { Args: { cat: string }; Returns: undefined };
       merge_categories: {
         Args: { source: string; target: string };

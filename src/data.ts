@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import type { CardStats } from './calling-card';
 import { supabase } from './supabase';
 import { nextTopSlot, PG, writeError, type WriteError } from './text';
 
@@ -33,11 +34,26 @@ export type Ranking = {
   review: string | null;
   /** 1–4 when this ranking sits in its author's top four, null otherwise. */
   top_rank: number | null;
+  /**
+   * How many other people liked this, as PostgREST returns an embedded
+   * aggregate: a one-element array, or an empty one where nobody has. Read it
+   * through {@link likeCount} rather than indexing it at a call site.
+   */
+  likes: { count: number }[];
 };
 
-/** The columns every ranking list reads. One string so no list drifts from the rest. */
+/** The likes on a ranking, flattened out of PostgREST's aggregate shape. */
+export function likeCount(ranking: { likes?: { count: number }[] | null }): number {
+  return ranking.likes?.[0]?.count ?? 0;
+}
+
+/**
+ * The columns every ranking list reads. One string so no list drifts from the
+ * rest — `likes(count)` is an embedded aggregate, so the count arrives with the
+ * row instead of costing a query per surface.
+ */
 const RANKING_FIELDS =
-  'id, food, score, created_at, user_id, hearted, review, top_rank, profiles(username, is_admin, is_supporter, tags)';
+  'id, food, score, created_at, user_id, hearted, review, top_rank, likes(count), profiles(username, is_admin, is_supporter, tags)';
 
 export type Activity = Ranking & { categories: { name: string } | null };
 
@@ -49,6 +65,11 @@ export type ProfileInfo = {
   is_supporter: boolean;
   banned_at: string | null;
   tags: string[];
+  /** The three chosen card stats. Null slots mean "never opened the studio". */
+  card_slot_1: string | null;
+  card_slot_2: string | null;
+  card_slot_3: string | null;
+  card_accent: string | null;
 };
 
 export type ProfileRanking = Activity & { category_id: string };
@@ -114,7 +135,9 @@ export function useProfile(username: string, version: number) {
       // finds `jack`.
       const { data: prof, error: profErr } = await client
         .from('profiles')
-        .select('id, username, created_at, is_admin, is_supporter, banned_at, tags')
+        .select(
+          'id, username, created_at, is_admin, is_supporter, banned_at, tags, card_slot_1, card_slot_2, card_slot_3, card_accent',
+        )
         .eq('username', username)
         .maybeSingle();
       if (!alive) return;
@@ -413,6 +436,134 @@ export function useCategoryNames(version: number) {
 }
 
 /**
+ * The numbers behind every stat a calling card could show, for one person.
+ *
+ * Its own query rather than more columns on `useProfile`: the card is the only
+ * thing that needs these, they cost a pile of per-person aggregates, and the
+ * Eaters tab will later want the same view for many profiles at once.
+ *
+ * Postgres `numeric` arrives as a string over PostgREST, so every score is
+ * pushed through `Number` here rather than at each render site.
+ */
+export function useCardStats(userId: string | null, version: number) {
+  const [stats, setStats] = useState<CardStats | null>(null);
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setStats(null);
+      return;
+    }
+    let alive = true;
+    supabase
+      .from('profile_card_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error || !data) {
+          if (error) console.error('lunchboxd: card stats failed —', error.message);
+          return;
+        }
+        const named = (name: string | null, value: number | string | null) =>
+          name === null || value === null ? null : { name, value: Number(value) };
+        setStats({
+          likesReceived: Number(data.likes_received ?? 0),
+          likesGiven: Number(data.likes_given ?? 0),
+          heartsGiven: Number(data.hearts_given ?? 0),
+          rankings: Number(data.ranking_count ?? 0),
+          reviews: Number(data.review_count ?? 0),
+          categories: Number(data.category_count ?? 0),
+          invented: Number(data.invented_count ?? 0),
+          average: data.avg_score === null ? null : Number(data.avg_score),
+          best: named(data.best_food, data.best_score),
+          worst: named(data.worst_food, data.worst_score),
+          topCategory: named(data.top_category, data.top_category_count),
+          kindest: named(data.kindest_category, data.kindest_score),
+          harshest: named(data.harshest_category, data.harshest_score),
+          since: data.created_at,
+        });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, version]);
+
+  return stats;
+}
+
+/**
+ * Store your own three slots and accent.
+ *
+ * The column grant covers exactly these four alongside `username` and `tags`,
+ * so this cannot reach `is_admin` or `is_supporter` — and the accent is gated
+ * on read (`resolveAccent`) rather than here, so a supporter who lapses and
+ * returns gets their colour back without ever rewriting the row.
+ */
+export async function saveCard(
+  userId: string,
+  slots: readonly (string | null)[],
+  accent: string | null,
+): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      card_slot_1: slots[0] ?? null,
+      card_slot_2: slots[1] ?? null,
+      card_slot_3: slots[2] ?? null,
+      card_accent: accent,
+    })
+    .eq('id', userId);
+  return error
+    ? {
+        error: refused('saving a calling card', error, {
+          [PG.checkViolation]: "That isn't one of the stats a card can show.",
+        }),
+      }
+    : {};
+}
+
+/**
+ * Which rankings the viewer has liked, as a set of ranking ids.
+ *
+ * One query for the whole view rather than a per-row "did I like this": a
+ * person's own likes are few, and the set is what every row needs to know.
+ * Empty for signed-out viewers and for guests, who can't like at all (#42) —
+ * their control still renders, as the site's "Keep account" prompt.
+ */
+export function useMyLikes(userId: string | null, version: number) {
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setLiked(new Set());
+      return;
+    }
+    let alive = true;
+    supabase
+      .from('likes')
+      .select('ranking_id')
+      .eq('user_id', userId)
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          // Not page-breaking: the counts still render, the viewer's own marks
+          // just sit unlit until the next refresh.
+          console.error('lunchboxd: own likes failed —', error.message);
+          return;
+        }
+        setLiked(new Set((data ?? []).map((l) => l.ranking_id)));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, version]);
+
+  return liked;
+}
+
+/**
  * A rejected write, said out loud.
  *
  * Logs the raw Postgres text (the useful thing when debugging) and returns the
@@ -597,6 +748,39 @@ export async function setHearted(rankingId: string, hearted: boolean): Promise<{
   if (!supabase) return { error: 'Not connected' };
   const { error } = await supabase.from('rankings').update({ hearted }).eq('id', rankingId);
   return error ? { error: refused('hearting a ranking', error) } : {};
+}
+
+/**
+ * Like somebody else's ranking, or take the like back.
+ *
+ * The refusals worth naming are all one SQLSTATE: the insert policy turns away
+ * guests, banned accounts and self-likes alike with a 42501, and the guest is
+ * far and away the likeliest of the three — so that is the sentence, and it
+ * invites rather than scolds. A duplicate is reported as success: the caller
+ * asked for "liked" and liked is what it already is.
+ */
+export async function setLike(
+  rankingId: string,
+  userId: string,
+  liked: boolean,
+): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  if (!liked) {
+    const { error } = await supabase
+      .from('likes')
+      .delete()
+      .eq('ranking_id', rankingId)
+      .eq('user_id', userId);
+    return error ? { error: refused('unliking', error) } : {};
+  }
+  const { error } = await supabase.from('likes').insert({ ranking_id: rankingId, user_id: userId });
+  if (!error || error.code === PG.duplicate) return {};
+  return {
+    error: refused('liking', error, {
+      [PG.rlsDenied]:
+        'Likes need an email on your account. Use “Keep account” and this one is yours for good.',
+    }),
+  };
 }
 
 export async function deleteRanking(id: string): Promise<{ error?: string }> {

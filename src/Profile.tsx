@@ -1,10 +1,12 @@
 import { useState } from 'react';
 
+import { CallingCard, CardStudio } from './CallingCard';
 import {
   banProfile,
   renameProfile,
   setProfileTags,
   setTopPick,
+  useCardStats,
   useProfile,
   type ProfileRanking,
 } from './data';
@@ -353,6 +355,8 @@ export function ProfilePage({
   onRenamed: () => void;
 }) {
   const { profile, rankings, stats, top, error } = useProfile(username, version);
+  const cardStats = useCardStats(profile?.id ?? null, version);
+  const [studioOpen, setStudioOpen] = useState(false);
 
   if (error) return <LoadError />;
 
@@ -421,10 +425,44 @@ export function ProfilePage({
             </p>
           )}
         </div>
-        {viewerIsAdmin && !own && !banned && !profile.is_admin && (
+        {/* The card takes the header's right-hand corner (owner-ruled), so the
+            ban button — which used to have it to itself — stacks underneath.
+            Full width on phones, where the header wraps; capped on desktop so
+            it never crowds the handle. */}
+        {!banned && (
+          <div className="flex w-full flex-col items-end gap-2 sm:w-auto sm:max-w-[340px]">
+            {cardStats && (
+              <CallingCard
+                className="w-full"
+                handle={profile.username}
+                badges={profileTags(profile)}
+                stats={cardStats}
+                slots={[profile.card_slot_1, profile.card_slot_2, profile.card_slot_3]}
+                accent={profile.card_accent}
+                isSupporter={profile.is_supporter}
+                onEdit={own ? () => setStudioOpen((v) => !v) : undefined}
+              />
+            )}
+            {viewerIsAdmin && !own && !profile.is_admin && (
+              <BanButton targetId={profile.id} username={profile.username} onChanged={onChanged} />
+            )}
+          </div>
+        )}
+        {banned && viewerIsAdmin && !own && !profile.is_admin && (
           <BanButton targetId={profile.id} username={profile.username} onChanged={onChanged} />
         )}
       </div>
+
+      {own && !banned && studioOpen && (
+        <CardStudio
+          userId={profile.id}
+          slots={[profile.card_slot_1, profile.card_slot_2, profile.card_slot_3]}
+          accent={profile.card_accent}
+          isSupporter={profile.is_supporter}
+          onSaved={onChanged}
+          onClose={() => setStudioOpen(false)}
+        />
+      )}
 
       {own && !banned && (
         <TagPicker userId={profile.id} current={profile.tags} onChanged={onChanged} />

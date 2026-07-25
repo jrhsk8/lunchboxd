@@ -2,6 +2,10 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-25 — The version comes off the footer; the changelog stays in the repo
+
+Owner-asked: "remove the versioning from the bottom of the website that's just for me." The `v0.6.0` footer button and the What's-new dialog it opened are gone, along with the `showWhatsNew` state and the aliased `releases` import — with no entry point, the dialog was unreachable code. This reverses the presentation half of the 2026-07-24 ruling below; the source-of-truth half stands. `src/releases.ts` is kept and still bumped in step with `package.json` by hand, now as a repo-internal record rather than something the site shows.
+
 ### 2026-07-25 — Guests get a serial handle; picking a name costs an email
 
 Owner-asked, off two people losing a handle in the site's first two days ("seems like people keep losing their usernames, can we prevent this?").

@@ -9,14 +9,12 @@ import {
   useBoard,
   useCategoryRankings,
   useCategoryStat,
+  useMyLikes,
   useTagReviews,
   type CategoryStat,
   type Ranking,
 } from './data';
 import { ProfilePage } from './Profile';
-// Aliased: `version` inside Site is useBoard's refresh counter, which would
-// otherwise shadow this and put the poll count in the footer.
-import { releases, version as siteVersion } from './releases';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
 import {
@@ -25,8 +23,10 @@ import {
   CategoryLink,
   input,
   kicker,
+  LikesProvider,
   LoadError,
   label,
+  type LikeViewer,
   panel,
   profileHref,
   RankingRow,
@@ -66,9 +66,12 @@ function Site() {
   const { session, username, isAdmin, refreshProfile } = useAuth();
   const { stats, activity, loaded, error, version, refresh } = useBoard();
   const route = useRoute();
+  // One query for every row on the page, keyed to the board's refresh counter
+  // so a like lights up its own row the moment the refetch lands.
+  const myLikes = useMyLikes(session?.user.id ?? null, version);
+  const likeViewer: LikeViewer = !session ? 'out' : session.user.is_anonymous ? 'guest' : 'email';
   const [tab, setTab] = useState<'categories' | 'activity'>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
-  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   const routeKey =
     route.page === 'profile'
@@ -107,219 +110,211 @@ function Site() {
     // 1320, not 1140: the feed headline ("X ranked FOOD in CATEGORY") is the
     // widest thing on the site and the category — the link out — sits at the
     // end, so it was what got ellipsised. The extra 180px clears it.
-    <div className="mx-auto max-w-[1320px] p-[clamp(16px,4vw,40px)]">
-      <header className="mb-8 flex flex-wrap items-center gap-3 rounded-(--radius-card) border border-edge bg-topbar px-4 py-2.5">
-        {/* Brand lockup per public/brand/README.md: 24px on-dark mark, 17px/800
+    <LikesProvider liked={myLikes} viewer={likeViewer}>
+      <div className="mx-auto max-w-[1320px] p-[clamp(16px,4vw,40px)]">
+        <header className="mb-8 flex flex-wrap items-center gap-3 rounded-(--radius-card) border border-edge bg-topbar px-4 py-2.5">
+          {/* Brand lockup per public/brand/README.md: 24px on-dark mark, 17px/800
             lowercase wordmark with the clay "d", gap 0.4x the icon width. */}
-        <a href="#/" className="flex items-center gap-2.5" title="Back to the board">
-          <svg viewBox="0 0 48 48" className="h-6 w-6" aria-hidden>
-            <rect
-              x="4"
-              y="19"
-              width="40"
-              height="23"
-              rx="4"
-              fill="none"
-              stroke="#fcfcfc"
-              strokeWidth="3.5"
-            />
-            <path
-              d="M16 19 v-3.5 a3.5 3.5 0 0 1 3.5 -3.5 h9 a3.5 3.5 0 0 1 3.5 3.5 v3.5"
-              fill="none"
-              stroke="#fcfcfc"
-              strokeWidth="3.5"
-            />
-            <path
-              d="M24 24 l2 4 4.4 .6 -3.2 3.1 .8 4.3 -4 -2.1 -4 2.1 .8 -4.3 -3.2 -3.1 4.4 -.6 z"
-              fill="#fca044"
-            />
-          </svg>
-          <span className="text-[17px] font-extrabold tracking-[-0.02em]">
-            lunchbox<span className="text-clay">d</span>
-          </span>
-        </a>
-        <span className="ml-auto flex items-center gap-3">
-          <span className="hidden text-xs text-faint tabular-nums sm:inline">
-            {totalRankings} rankings · {stats.length} categories
-          </span>
-          {session && (
-            <>
-              {username ? (
-                <a
-                  href={profileHref(username)}
-                  title="Your profile"
-                  className="flex items-center gap-1.5 rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold transition-colors hover:border-edge-hover hover:text-clay"
+          <a href="#/" className="flex items-center gap-2.5" title="Back to the board">
+            <svg viewBox="0 0 48 48" className="h-6 w-6" aria-hidden>
+              <rect
+                x="4"
+                y="19"
+                width="40"
+                height="23"
+                rx="4"
+                fill="none"
+                stroke="#fcfcfc"
+                strokeWidth="3.5"
+              />
+              <path
+                d="M16 19 v-3.5 a3.5 3.5 0 0 1 3.5 -3.5 h9 a3.5 3.5 0 0 1 3.5 3.5 v3.5"
+                fill="none"
+                stroke="#fcfcfc"
+                strokeWidth="3.5"
+              />
+              <path
+                d="M24 24 l2 4 4.4 .6 -3.2 3.1 .8 4.3 -4 -2.1 -4 2.1 .8 -4.3 -3.2 -3.1 4.4 -.6 z"
+                fill="#fca044"
+              />
+            </svg>
+            <span className="text-[17px] font-extrabold tracking-[-0.02em]">
+              lunchbox<span className="text-clay">d</span>
+            </span>
+          </a>
+          <span className="ml-auto flex items-center gap-3">
+            <span className="hidden text-xs text-faint tabular-nums sm:inline">
+              {totalRankings} rankings · {stats.length} categories
+            </span>
+            {session && (
+              <>
+                {username ? (
+                  <a
+                    href={profileHref(username)}
+                    title="Your profile"
+                    className="flex items-center gap-1.5 rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold transition-colors hover:border-edge-hover hover:text-clay"
+                  >
+                    {username}
+                    {isAdmin && <Tag kind="admin" size={9} />}
+                  </a>
+                ) : (
+                  <span className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold">
+                    …
+                  </span>
+                )}
+                {session.user.is_anonymous && <KeepAccount />}
+                <button
+                  type="button"
+                  className="cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-faint hover:text-ink"
+                  onClick={() => {
+                    if (
+                      session.user.is_anonymous &&
+                      !window.confirm(
+                        `Guest accounts can't be recovered: sign out and this account is gone for good. Your rankings stay on the board under ${username ? `"${username}"` : 'your handle'}, but you'll never add to them or pick a handle. Use "Add email" first to keep it. Sign out anyway?`,
+                      )
+                    ) {
+                      return;
+                    }
+                    supabase!.auth.signOut();
+                  }}
                 >
-                  {username}
-                  {isAdmin && <Tag kind="admin" size={9} />}
-                </a>
-              ) : (
-                <span className="rounded-lg border border-edge bg-raised px-2.5 py-1 text-xs font-bold">
-                  …
-                </span>
-              )}
-              {session.user.is_anonymous && <KeepAccount />}
-              <button
-                type="button"
-                className="cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-faint hover:text-ink"
-                onClick={() => {
-                  if (
-                    session.user.is_anonymous &&
-                    !window.confirm(
-                      `Guest accounts can't be recovered: sign out and this account is gone for good. Your rankings stay on the board under ${username ? `"${username}"` : 'your handle'}, but you'll never add to them or pick a handle. Use "Add email" first to keep it. Sign out anyway?`,
-                    )
-                  ) {
-                    return;
-                  }
-                  supabase!.auth.signOut();
-                }}
-              >
-                Sign out
-              </button>
-            </>
-          )}
-        </span>
-      </header>
+                  Sign out
+                </button>
+              </>
+            )}
+          </span>
+        </header>
 
-      {route.page === 'terms' ? (
-        <Terms />
-      ) : route.page === 'tag' ? (
-        <TagPage tag={route.tag} version={version} />
-      ) : route.page === 'category' ? (
-        <CategoryPage
-          name={route.name}
-          stats={stats}
-          version={version}
-          userId={session?.user.id ?? null}
-          viewerIsAdmin={isAdmin}
-          onChanged={refresh}
-        />
-      ) : route.page === 'profile' ? (
-        <ProfilePage
-          username={route.username}
-          version={version}
-          userId={session?.user.id ?? null}
-          viewerIsAdmin={isAdmin}
-          // From the JWT claim, which stays true until the session refreshes
-          // after an email is confirmed. That only gates the UI — the DB
-          // trigger reads auth.users.is_anonymous and has the final say — and
-          // a confirmation link lands here with a fresh session anyway.
-          viewerIsGuest={session?.user.is_anonymous ?? false}
-          onChanged={refresh}
-          onRenamed={() => {
-            refresh();
-            refreshProfile();
-          }}
-        />
-      ) : (
-        <>
-          <div className="mb-6">
-            <p className={`${kicker} mb-1.5`}>Food, ranked, together</p>
-            <h1 className="m-0 text-[28px] font-bold">Every bite goes on the record</h1>
-            <p className="mt-2 mb-0 max-w-xl text-sm leading-relaxed text-dim">
-              Categories belong to everyone. Invent one, score what you eat out of five, and the
-              global average shifts with every ranking anyone logs.
-            </p>
-          </div>
+        {route.page === 'terms' ? (
+          <Terms />
+        ) : route.page === 'tag' ? (
+          <TagPage tag={route.tag} version={version} />
+        ) : route.page === 'category' ? (
+          <CategoryPage
+            name={route.name}
+            stats={stats}
+            version={version}
+            userId={session?.user.id ?? null}
+            viewerIsAdmin={isAdmin}
+            onChanged={refresh}
+          />
+        ) : route.page === 'profile' ? (
+          <ProfilePage
+            username={route.username}
+            version={version}
+            userId={session?.user.id ?? null}
+            viewerIsAdmin={isAdmin}
+            // From the JWT claim, which stays true until the session refreshes
+            // after an email is confirmed. That only gates the UI — the DB
+            // trigger reads auth.users.is_anonymous and has the final say — and
+            // a confirmation link lands here with a fresh session anyway.
+            viewerIsGuest={session?.user.is_anonymous ?? false}
+            onChanged={refresh}
+            onRenamed={() => {
+              refresh();
+              refreshProfile();
+            }}
+          />
+        ) : (
+          <>
+            <div className="mb-6">
+              <p className={`${kicker} mb-1.5`}>Food, ranked, together</p>
+              <h1 className="m-0 text-[28px] font-bold">Every bite goes on the record</h1>
+              <p className="mt-2 mb-0 max-w-xl text-sm leading-relaxed text-dim">
+                Categories belong to everyone. Invent one, score what you eat out of five, and the
+                global average shifts with every ranking anyone logs.
+              </p>
+            </div>
 
-          <div className="grid items-start gap-6 md:grid-cols-[360px_minmax(0,1fr)]">
-            <section className={`${panel} p-5`} aria-label={session ? 'rank a food' : 'sign in'}>
-              <p className={`${kicker} mb-4`}>{session ? 'Rank a food' : 'Join the table'}</p>
-              {session ? (
-                <RankForm userId={session.user.id} stats={stats} onLogged={refresh} />
-              ) : (
-                <SignInCard />
-              )}
-            </section>
+            <div className="grid items-start gap-6 md:grid-cols-[360px_minmax(0,1fr)]">
+              <section className={`${panel} p-5`} aria-label={session ? 'rank a food' : 'sign in'}>
+                <p className={`${kicker} mb-4`}>{session ? 'Rank a food' : 'Join the table'}</p>
+                {session ? (
+                  <RankForm userId={session.user.id} stats={stats} onLogged={refresh} />
+                ) : (
+                  <SignInCard />
+                )}
+              </section>
 
-            <section className="flex min-w-0 flex-col gap-3">
-              {/* A real tablist: these were two plain buttons whose selected
+              <section className="flex min-w-0 flex-col gap-3">
+                {/* A real tablist: these were two plain buttons whose selected
                   state was carried by background colour alone, so a screen
                   reader announced two unrelated buttons and said nothing about
                   which view was showing. Roving tabindex + arrow keys come with
                   the pattern. */}
-              <div
-                role="tablist"
-                aria-label="board view"
-                className="flex gap-1 self-start rounded-(--radius-card) border-2 border-edge bg-raised p-1"
-                onKeyDown={(e) => {
-                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-                  e.preventDefault();
-                  const next = tab === 'categories' ? 'activity' : 'categories';
-                  setTab(next);
-                  document.getElementById(`tab-${next}`)?.focus();
-                }}
-              >
-                {(['categories', 'activity'] as const).map((t) => (
-                  <button
-                    key={t}
-                    id={`tab-${t}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === t}
-                    aria-controls={`panel-${t}`}
-                    tabIndex={tab === t ? 0 : -1}
-                    className={`cursor-pointer rounded-[7px] border-0 px-4 py-2 text-sm font-semibold capitalize transition-colors ${
-                      tab === t
-                        ? 'bg-clay/15 text-ink'
-                        : 'bg-transparent text-dim hover:bg-edge hover:text-ink'
-                    }`}
-                    onClick={() => setTab(t)}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+                <div
+                  role="tablist"
+                  aria-label="board view"
+                  className="flex gap-1 self-start rounded-(--radius-card) border-2 border-edge bg-raised p-1"
+                  onKeyDown={(e) => {
+                    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                    e.preventDefault();
+                    const next = tab === 'categories' ? 'activity' : 'categories';
+                    setTab(next);
+                    document.getElementById(`tab-${next}`)?.focus();
+                  }}
+                >
+                  {(['categories', 'activity'] as const).map((t) => (
+                    <button
+                      key={t}
+                      id={`tab-${t}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === t}
+                      aria-controls={`panel-${t}`}
+                      tabIndex={tab === t ? 0 : -1}
+                      className={`cursor-pointer rounded-[7px] border-0 px-4 py-2 text-sm font-semibold capitalize transition-colors ${
+                        tab === t
+                          ? 'bg-clay/15 text-ink'
+                          : 'bg-transparent text-dim hover:bg-edge hover:text-ink'
+                      }`}
+                      onClick={() => setTab(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
 
-              <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-                {tab === 'categories' ? (
-                  <CategoryBoard
-                    stats={stats}
-                    loaded={loaded}
-                    error={error}
-                    openId={openId}
-                    setOpenId={setOpenId}
-                    version={version}
-                    userId={session?.user.id ?? null}
-                    viewerIsAdmin={isAdmin}
-                    onChanged={refresh}
-                  />
-                ) : (
-                  <ActivityFeed
-                    activity={activity}
-                    loaded={loaded}
-                    error={error}
-                    userId={session?.user.id ?? null}
-                    onChanged={refresh}
-                  />
-                )}
-              </div>
-            </section>
-          </div>
-        </>
-      )}
+                <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
+                  {tab === 'categories' ? (
+                    <CategoryBoard
+                      stats={stats}
+                      loaded={loaded}
+                      error={error}
+                      openId={openId}
+                      setOpenId={setOpenId}
+                      version={version}
+                      userId={session?.user.id ?? null}
+                      viewerIsAdmin={isAdmin}
+                      onChanged={refresh}
+                    />
+                  ) : (
+                    <ActivityFeed
+                      activity={activity}
+                      loaded={loaded}
+                      error={error}
+                      userId={session?.user.id ?? null}
+                      onChanged={refresh}
+                    />
+                  )}
+                </div>
+              </section>
+            </div>
+          </>
+        )}
 
-      {/* Wraps on phones: three items at 320px otherwise push the footer wider
+        {/* Wraps on phones: three items at 320px otherwise push the footer wider
           than the viewport. */}
-      <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-2">
-        <span className="text-xs text-faint">
-          Lunchboxd — like Letterboxd, but you can eat the subject matter.
-        </span>
-        <a href="#/terms" className="text-xs text-faint underline hover:text-dim">
-          Terms of service
-        </a>
-        <button
-          type="button"
-          className="cursor-pointer border-0 bg-transparent p-0 text-xs tabular-nums text-faint underline hover:text-dim"
-          title="What's new"
-          onClick={() => setShowWhatsNew(true)}
-        >
-          v{siteVersion}
-        </button>
-      </footer>
-
-      {showWhatsNew && <WhatsNew onClose={() => setShowWhatsNew(false)} />}
-    </div>
+        <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-2">
+          <span className="text-xs text-faint">
+            Lunchboxd — like Letterboxd, but you can eat the subject matter.
+          </span>
+          <a href="#/terms" className="text-xs text-faint underline hover:text-dim">
+            Terms of service
+          </a>
+        </footer>
+      </div>
+    </LikesProvider>
   );
 }
 
@@ -362,58 +357,6 @@ function Terms() {
           Scores are a matter of taste. If the crowd says gas station sushi is a 4.5, the crowd has
           spoken.
         </p>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Version history, newest first. A dialog rather than a route: it's a footnote
- * about the site, not a place you navigate to or link someone at.
- */
-function WhatsNew({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-label="what's new"
-        className={`${panel} max-h-[85vh] w-full max-w-lg overflow-y-auto p-6`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <p className={`${kicker} m-0`}>What&rsquo;s new</p>
-          <button
-            type="button"
-            aria-label="close"
-            className="cursor-pointer border-0 bg-transparent p-1 text-sm text-faint hover:text-ink"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
-        <div className="flex flex-col gap-5">
-          {releases.map((release) => (
-            <section key={release.version} className="flex flex-col gap-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-bold tabular-nums text-ink">v{release.version}</span>
-                <span className="text-xs tabular-nums text-faint">{release.date}</span>
-              </div>
-              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {release.notes.map((note) => (
-                  <li
-                    key={note}
-                    className="border-l-2 border-edge pl-3 text-sm leading-relaxed text-dim"
-                  >
-                    {note}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
       </div>
     </div>
   );
