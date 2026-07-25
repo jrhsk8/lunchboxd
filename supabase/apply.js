@@ -16,16 +16,43 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REF = 'kxbteesmfozqzoxzktzv';
 
+/** The hosted project, shared with gambdle.net. Imported by gen-types.js. */
+export const REF = 'kxbteesmfozqzoxzktzv';
+
+/**
+ * The Supabase PAT, read by the key that names it.
+ *
+ * ~/.claude.json holds every project's MCP config, so scanning the file for an
+ * `sbp_` prefix returned whichever token sorted earliest — another project's,
+ * given the chance, and the failure is a permission error against somebody
+ * else's database rather than a missing-token one (#116). Two entries there
+ * carry a token today and they are the same token; distinct ones are a
+ * question this cannot answer, so it asks rather than picks.
+ */
 export function readToken() {
-  const cfg = fs.readFileSync(
-    path.join(process.env.USERPROFILE || process.env.HOME, '.claude.json'),
-    'utf8',
+  if (process.env.SUPABASE_ACCESS_TOKEN) return process.env.SUPABASE_ACCESS_TOKEN;
+
+  const cfg = JSON.parse(
+    fs.readFileSync(path.join(process.env.USERPROFILE || process.env.HOME, '.claude.json'), 'utf8'),
   );
-  const m = cfg.match(/sbp_[A-Za-z0-9]+/);
-  if (!m) throw new Error('no supabase access token found in ~/.claude.json');
-  return m[0];
+  const tokens = new Set();
+  for (const project of Object.values(cfg.projects ?? {})) {
+    for (const server of Object.values(project?.mcpServers ?? {})) {
+      const token = server?.env?.SUPABASE_ACCESS_TOKEN;
+      if (token) tokens.add(token);
+    }
+  }
+
+  if (tokens.size === 0)
+    throw new Error(
+      'no SUPABASE_ACCESS_TOKEN in ~/.claude.json; set it in the environment instead',
+    );
+  if (tokens.size > 1)
+    throw new Error(
+      `~/.claude.json holds ${tokens.size} different Supabase tokens; set SUPABASE_ACCESS_TOKEN to say which`,
+    );
+  return [...tokens][0];
 }
 
 export async function run(query, token = readToken()) {

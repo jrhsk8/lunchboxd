@@ -13,17 +13,17 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readToken } from './apply.js';
+import { REF, readToken } from './apply.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, '..', 'src', 'database.types.ts');
-const REF = 'kxbteesmfozqzoxzktzv';
 
 // Through a shell, not execFileSync: since Node 20.12 the child_process family
 // refuses to spawn a .cmd/.bat directly (CVE-2024-27980), so the `npx.cmd` this
 // used to invoke came back as EINVAL on this box's Node 24. Every part of the
-// command is a literal here — nothing interpolated comes from outside this
-// file — so there is nothing for a shell to mis-split.
+// command is a literal here — `REF` is a constant in apply.js, and nothing
+// interpolated comes from outside the repo — so there is nothing for a shell to
+// mis-split.
 const types = execSync(`npx supabase gen types typescript --project-id ${REF} --schema lunchboxd`, {
   encoding: 'utf8',
   env: { ...process.env, SUPABASE_ACCESS_TOKEN: readToken() },
