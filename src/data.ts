@@ -115,20 +115,28 @@ export type ProfileStats = Guaranteed<
 >;
 
 /**
- * What the UI shows when a query fails.
+ * What a caller says when a read fails: `true`, and nothing else.
  *
  * Every fetch used to destructure `data` and drop `error`, so a Supabase
- * outage, an expired PostgREST schema cache, or a dead connection all rendered
- * as "no categories yet" — the site reporting emptiness as fact. These strings
- * are deliberately vague about the cause (nobody can act on PGRST106) and
- * specific about what failed.
+ * outage, an expired PostgREST schema cache or a dead connection all rendered
+ * as "no categories yet" — the site reporting emptiness as fact. Fixing that
+ * left three contracts behind: a string for five hooks, a boolean for two, and
+ * console-only for three. No consumer ever rendered the string; every one
+ * tested it for truthiness and drew `LoadError`, whose copy was a second
+ * hardcoded copy of the same sentence (#94).
+ *
+ * So the sentence lives in `LoadError` alone, and a read reports whether it
+ * failed. The cause goes to the console, which is where it is useful — nobody
+ * can act on PGRST106.
+ *
+ * The three hooks that still swallow their errors do it deliberately, and each
+ * says so: an unlit bell or an unlit like is not worth replacing a page with a
+ * failure notice.
  */
-const FETCH_FAILED = "Couldn't reach the kitchen";
-
-function fail(where: string, error: { message: string } | null): string | null {
-  if (!error) return null;
+function fail(where: string, error: { message: string } | null): boolean {
+  if (!error) return false;
   console.error(`lunchboxd: ${where} failed —`, error.message);
-  return FETCH_FAILED;
+  return true;
 }
 
 /**
@@ -142,7 +150,7 @@ export function useProfile(username: string, version: number) {
   const [rankings, setRankings] = useState<ProfileRanking[] | null>(null);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [top, setTop] = useState<ProfileRanking[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   // Reset to loading only on a handle change; version bumps (realtime, tab
   // focus) refetch in place so the page never flashes.
@@ -151,7 +159,7 @@ export function useProfile(username: string, version: number) {
     setRankings(null);
     setStats(null);
     setTop([]);
-    setError(null);
+    setError(false);
   }, [username]);
 
   useEffect(() => {
@@ -168,11 +176,11 @@ export function useProfile(username: string, version: number) {
         .eq('username', username)
         .maybeSingle();
       if (!alive) return;
-      if (profErr) {
-        setError(fail('profile lookup', profErr));
+      if (fail('profile lookup', profErr)) {
+        setError(true);
         return;
       }
-      setError(null);
+      setError(false);
       setProfile(prof ?? null);
       if (!prof) return;
 
@@ -199,9 +207,8 @@ export function useProfile(username: string, version: number) {
           .order('top_rank'),
       ]);
       if (!alive) return;
-      const err = fail('profile rankings', listRes.error ?? statRes.error ?? topRes.error);
-      if (err) {
-        setError(err);
+      if (fail('profile rankings', listRes.error ?? statRes.error ?? topRes.error)) {
+        setError(true);
         return;
       }
       setRankings(listRes.data ?? []);
@@ -225,7 +232,7 @@ export function useBoard() {
   const [stats, setStats] = useState<CategoryStat[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const [version, setVersion] = useState(0);
 
   /**
@@ -261,14 +268,13 @@ export function useBoard() {
         .limit(30),
     ]).then(([statsRes, actRes]) => {
       if (!alive) return;
-      const err = fail('board', statsRes.error ?? actRes.error);
-      if (err) {
-        setError(err);
+      if (fail('board', statsRes.error ?? actRes.error)) {
+        setError(true);
         // Deliberately not setLoaded(true): an errored board must never fall
         // through to the "no categories yet" empty state.
         return;
       }
-      setError(null);
+      setError(false);
       const rows = (statsRes.data ?? []) as CategoryStat[];
       // Sort by the prior-weighted score, not the raw average: a category
       // invented a minute ago with one 5.0 does not outrank fifty rankings
@@ -325,11 +331,11 @@ export function useBoard() {
  */
 export function useCategoryStat(name: string, version: number) {
   const [stat, setStat] = useState<CategoryStat | null | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     setStat(undefined);
-    setError(null);
+    setError(false);
   }, [name]);
 
   useEffect(() => {
@@ -342,12 +348,12 @@ export function useCategoryStat(name: string, version: number) {
         .eq('name', name)
         .maybeSingle();
       if (!alive) return;
-      if (catErr) {
-        setError(fail('category lookup', catErr));
+      if (fail('category lookup', catErr)) {
+        setError(true);
         return;
       }
       if (!cat) {
-        setError(null);
+        setError(false);
         setStat(null);
         return;
       }
@@ -357,11 +363,11 @@ export function useCategoryStat(name: string, version: number) {
         .eq('id', cat.id)
         .maybeSingle();
       if (!alive) return;
-      if (statErr) {
-        setError(fail('category stats', statErr));
+      if (fail('category stats', statErr)) {
+        setError(true);
         return;
       }
-      setError(null);
+      setError(false);
       setStat((data as CategoryStat | null) ?? null);
     })();
     return () => {
@@ -381,12 +387,12 @@ export function useCategoryStat(name: string, version: number) {
  */
 export function useHashtagReviews(hashtag: string, version: number) {
   const [rows, setRows] = useState<Activity[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const clean = cleanHashtag(hashtag);
 
   useEffect(() => {
     setRows(null);
-    setError(null);
+    setError(false);
   }, [hashtag]);
 
   useEffect(() => {
@@ -404,11 +410,11 @@ export function useHashtagReviews(hashtag: string, version: number) {
         .order('created_at', { ascending: false })
         .limit(200);
       if (!alive) return;
-      if (err) {
-        setError(fail('hashtag search', err));
+      if (fail('hashtag search', err)) {
+        setError(true);
         return;
       }
-      setError(null);
+      setError(false);
       const boundary = new RegExp(`(^|[^a-z0-9_])#${clean}([^a-z0-9_]|$)`, 'i');
       setRows((data ?? []).filter((r) => r.review && boundary.test(r.review)));
     })();
@@ -423,13 +429,13 @@ export function useHashtagReviews(hashtag: string, version: number) {
 /** Everyone's rankings within one category, newest first. */
 export function useCategoryRankings(categoryId: string | null, version: number) {
   const [rankings, setRankings] = useState<Ranking[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     // Clears the error as well as the rows: a failure against the previous
     // category would otherwise survive into this one and render LoadError over
     // a category that loaded fine.
-    setError(null);
+    setError(false);
     if (!supabase || !categoryId) {
       setRankings(null);
       return;
@@ -443,11 +449,11 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
       .limit(200)
       .then(({ data, error: err }) => {
         if (!alive) return;
-        if (err) {
-          setError(fail('category rankings', err));
+        if (fail('category rankings', err)) {
+          setError(true);
           return;
         }
-        setError(null);
+        setError(false);
         setRankings(data ?? []);
       });
     return () => {
@@ -635,8 +641,7 @@ export function useEaters(sort: EaterSort, shown: number, version: number) {
       .then(({ data, count, error }) => {
         if (!alive) return;
         setLoaded(true);
-        if (error) {
-          console.error('lunchboxd: eaters failed —', error.message);
+        if (fail('eaters', error)) {
           setError(true);
           return;
         }
@@ -701,8 +706,7 @@ export function useNotifications(userId: string | null, version: number) {
       .then(({ data, error }) => {
         if (!alive) return;
         setLoaded(true);
-        if (error) {
-          console.error('lunchboxd: notifications failed —', error.message);
+        if (fail('notifications', error)) {
           setError(true);
           return;
         }
@@ -904,7 +908,7 @@ export async function setTopPick(
     .select('top_rank')
     .eq('user_id', ranking.user_id)
     .not('top_rank', 'is', null);
-  if (readErr) return { error: FETCH_FAILED };
+  if (readErr) return { error: "Couldn't check your top four just now. Try again." };
 
   const slot = nextTopSlot((data ?? []).map((r) => r.top_rank));
   if (slot === null) {

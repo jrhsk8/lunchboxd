@@ -817,7 +817,7 @@ function CategoryBoard({
 }: {
   stats: CategoryStat[];
   loaded: boolean;
-  error: string | null;
+  error: boolean;
   openId: string | null;
   setOpenId: (id: string | null) => void;
   version: number;
@@ -1425,7 +1425,7 @@ function ActivityFeed({
 }: {
   activity: ReturnType<typeof useBoard>['activity'];
   loaded: boolean;
-  error: string | null;
+  error: boolean;
   userId: string | null;
   onChanged: () => void;
 }) {
