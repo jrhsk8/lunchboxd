@@ -1,5 +1,10 @@
 -- Hearts (Letterboxd-style likes): anyone can heart anyone's ranking; one
 -- heart per person per ranking. Public to read, yours to give and take back.
+--
+-- Dropped the same day by 20260724170000_heart_own_ranking.sql: one mark
+-- doing two jobs left "loved it" ambiguous about whose opinion it carried.
+-- The `lunchboxd.likes` table that exists today is a different one, created
+-- by 20260725014000_likes.sql — a second mark beside `hearted`, not this.
 
 create table lunchboxd.likes (
   ranking_id uuid not null references lunchboxd.rankings (id) on delete cascade,
