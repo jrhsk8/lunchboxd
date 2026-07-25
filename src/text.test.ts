@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 // Imported from text.ts, where these rules live on purpose: each is a decision
 // with edge cases, and a test is what keeps the decision from drifting.
-import { cleanHashtag, hashtagsIn, nextTopSlot, parseHash, PG, timeAgo, writeError } from './text';
+import {
+  cleanHashtag,
+  hashtagsIn,
+  nextTopSlot,
+  parseHash,
+  PG,
+  plural,
+  timeAgo,
+  writeError,
+} from './text';
 
 /*
  * The pure functions worth pinning: each has boundary rules subtle enough to
@@ -77,6 +86,22 @@ describe('cleanHashtag', () => {
   it('gives back nothing when nothing survives', () => {
     expect(cleanHashtag('!!!')).toBe('');
     expect(cleanHashtag('')).toBe('');
+  });
+});
+
+describe('plural', () => {
+  it('uses the singular at exactly one', () => {
+    expect(plural(1, 'ranking', 'rankings')).toBe('ranking');
+  });
+
+  it('uses the plural at zero, which is the case worth pinning', () => {
+    expect(plural(0, 'ranking', 'rankings')).toBe('rankings');
+  });
+
+  it('carries the irregular pairs this site actually uses', () => {
+    expect(plural(1, 'person', 'people')).toBe('person');
+    expect(plural(3, 'person', 'people')).toBe('people');
+    expect(plural(2, 'Category', 'Categories')).toBe('Categories');
   });
 });
 

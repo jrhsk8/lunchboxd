@@ -59,6 +59,20 @@ export function cleanHashtag(hashtag: string): string {
   return hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
 }
 
+/**
+ * The word to use for a count: `one` at exactly one, `many` everywhere else —
+ * zero included, which is the case the inline ternaries kept getting right by
+ * accident.
+ *
+ * Both words are spelled out rather than an 's' being appended, because the
+ * site's plurals include person/people and category/categories, and a helper
+ * that only handles the easy half sends half the call sites back to writing
+ * their own (#87).
+ */
+export function plural(n: number, one: string, many: string): string {
+  return n === 1 ? one : many;
+}
+
 /** The Postgres SQLSTATEs this client can actually meet, by name. */
 export const PG = {
   /** Unique violation: a duplicate ranking, handle, category name, or top-four slot. */

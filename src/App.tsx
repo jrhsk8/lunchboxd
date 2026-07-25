@@ -38,7 +38,7 @@ import {
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
-import { cleanHashtag } from './text';
+import { cleanHashtag, plural } from './text';
 import {
   btnPrimary,
   categoryHref,
@@ -825,8 +825,8 @@ function CategoryBoard({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-bold">{c.name}</span>
                 <span className="mt-0.5 block text-xs text-faint">
-                  {c.ranking_count} {c.ranking_count === 1 ? 'ranking' : 'rankings'} ·{' '}
-                  {c.ranker_count} {c.ranker_count === 1 ? 'person' : 'people'}
+                  {c.ranking_count} {plural(c.ranking_count, 'ranking', 'rankings')} ·{' '}
+                  {c.ranker_count} {plural(c.ranker_count, 'person', 'people')}
                 </span>
               </span>
               <span className="flex w-full items-center gap-3 sm:contents">
@@ -906,7 +906,7 @@ function DeleteCategoryButton({
             !window.confirm(
               n === 0
                 ? `Delete "${category.name}"? Nothing has been ranked in it. It's gone for good.`
-                : `Delete "${category.name}" entirely? All ${n} ${n === 1 ? 'ranking' : 'rankings'} in it ${n === 1 ? 'goes' : 'go'} too, from everyone who logged one, and the averages recompute without them. There is no undo.`,
+                : `Delete "${category.name}" entirely? All ${n} ${plural(n, 'ranking', 'rankings')} in it ${plural(n, 'goes', 'go')} too, from everyone who logged one, and the averages recompute without them. There is no undo.`,
             )
           ) {
             return;
@@ -1131,7 +1131,7 @@ function CategoryDetail({
           <span className="text-dim">
             Your average here:{' '}
             <span className={`font-bold tabular-nums ${scoreTone(myAvg)}`}>{myAvg.toFixed(2)}</span>{' '}
-            across {mine.length} {mine.length === 1 ? 'ranking' : 'rankings'}
+            across {mine.length} {plural(mine.length, 'ranking', 'rankings')}
           </span>
         ) : (
           <span />
@@ -1251,8 +1251,8 @@ function CategoryPage({
           <p className={`${kicker} mt-4 mb-1.5`}>Category</p>
           <h1 className="m-0 text-[28px] font-bold break-words">{stat.name}</h1>
           <p className="mt-1 mb-0 text-sm text-dim">
-            {stat.ranking_count} {stat.ranking_count === 1 ? 'ranking' : 'rankings'} ·{' '}
-            {stat.ranker_count} {stat.ranker_count === 1 ? 'person' : 'people'}
+            {stat.ranking_count} {plural(stat.ranking_count, 'ranking', 'rankings')} ·{' '}
+            {stat.ranker_count} {plural(stat.ranker_count, 'person', 'people')}
           </p>
         </div>
         {avg !== null && (
@@ -1325,7 +1325,7 @@ function HashtagPage({ hashtag, version }: { hashtag: string; version: number })
         <p className="mt-1 mb-0 text-sm text-dim">
           {rows === null
             ? 'Loading…'
-            : `${rows.length} ${rows.length === 1 ? 'review' : 'reviews'}`}
+            : `${rows.length} ${plural(rows.length, 'review', 'reviews')}`}
         </p>
       </div>
 

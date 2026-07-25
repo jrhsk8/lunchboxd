@@ -22,7 +22,7 @@ import {
   type ProfileRanking,
 } from './data';
 import { Stars } from './Stars';
-import { TOP_SLOTS } from './text';
+import { plural, TOP_SLOTS } from './text';
 import {
   CategoryLink,
   kicker,
@@ -148,7 +148,7 @@ function TopFour({
               ? 'Pin up to four of your rankings with the ◇ below.'
               : empties === 0
                 ? 'All four spots are taken.'
-                : `${empties} ${empties === 1 ? 'spot' : 'spots'} left.`}
+                : `${empties} ${plural(empties, 'spot', 'spots')} left.`}
           </p>
         )}
       </div>
@@ -509,11 +509,11 @@ export function ProfilePage({
           <TopFour picks={top} own={own} onChanged={onChanged} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
-              label={rankingCount === 1 ? 'Ranking' : 'Rankings'}
+              label={plural(rankingCount, 'Ranking', 'Rankings')}
               value={String(rankingCount)}
             />
             <Stat
-              label={categoryCount === 1 ? 'Category' : 'Categories'}
+              label={plural(categoryCount, 'Category', 'Categories')}
               value={String(categoryCount)}
             />
             <Stat

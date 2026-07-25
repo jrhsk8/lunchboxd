@@ -31,7 +31,7 @@ import {
   type Ranking,
 } from './data';
 import { StarInput, Stars } from './Stars';
-import { HASHTAG_RE, parseHash, timeAgo, type Route } from './text';
+import { HASHTAG_RE, parseHash, plural, timeAgo, type Route } from './text';
 import { profileTags, TAG_STYLES, type ProfileTags, type TagKind } from './tags';
 
 export { timeAgo } from './text';
@@ -528,7 +528,7 @@ function LikeControl({
   if (own) {
     return (
       <span className={`${likeColumn} pt-0.5 text-faint tabular-nums`}>
-        {count > 0 ? `${count} ${count === 1 ? 'like' : 'likes'}` : ''}
+        {count > 0 ? `${count} ${plural(count, 'like', 'likes')}` : ''}
       </span>
     );
   }

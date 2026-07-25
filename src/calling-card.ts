@@ -17,6 +17,8 @@
  * is the stat that is interesting at four rankings. Ruled in lunchboxd#43.
  */
 
+import { plural } from './text';
+
 /**
  * Every storable stat key. Pinned by a CHECK constraint in
  * `20260725022000_calling_card.sql` — keep the two in lockstep.
@@ -196,7 +198,7 @@ export function resolveSlot(key: CardStatKey, stats: CardStats): CardSlot {
     case 'category.most':
       return named(
         stats.topCategory,
-        (v) => `most ranked, ${v} ${v === 1 ? 'ranking' : 'rankings'}`,
+        (v) => `most ranked, ${v} ${plural(v, 'ranking', 'rankings')}`,
       );
     case 'category.kindest':
       return named(stats.kindest, (v) => `kindest to, ${v.toFixed(2)} average`);
