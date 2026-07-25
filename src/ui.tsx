@@ -669,6 +669,31 @@ export function LikesProvider({
   return <LikesContext.Provider value={value}>{children}</LikesContext.Provider>;
 }
 
+/**
+ * A mark that flips the moment you press it and steps aside when the server
+ * answers.
+ *
+ * The heart and the like each hand-rolled this: flip locally, clear the
+ * optimistic value once the refetch brings the server's, drop it on a rejected
+ * write, and reconcile during render rather than in an effect — because an
+ * effect renders the stale glyph once before correcting it. Two copies that
+ * had already drifted in how they reconcile, which is what the like count's
+ * race was made of (#85).
+ *
+ * `settled` is the part that differs and the part worth stating: it answers
+ * whether the server has caught up with what was asked for. The heart reads
+ * one fact and can compare it directly; the like reads two that refresh
+ * independently, so it waits for both.
+ */
+function useOptimisticMark<W, S>(
+  server: S,
+  settled: (wish: W, server: S) => boolean,
+): [W | null, (wish: W | null) => void] {
+  const [wish, setWish] = useState<W | null>(null);
+  if (wish !== null && settled(wish, server)) setWish(null);
+  return [wish, setWish];
+}
+
 /** The width the like column holds on every row, review or not, so they line up. */
 const likeColumn = 'w-[74px] shrink-0 text-xs';
 
@@ -696,18 +721,24 @@ function LikeControl({
 }) {
   const { liked, viewer } = useContext(LikesContext);
   const own = userId !== null && userId === ranking.user_id;
-  const mine = liked.has(ranking.id);
-  // Optimistic, like the heart: the write round-trips and the whole board
-  // refetches before the count would move otherwise.
-  const [pending, setPending] = useState<boolean | null>(null);
-  const [seen, setSeen] = useState(mine);
+  // The two facts, from two queries that refresh independently: whether this
+  // viewer has liked it (`useMyLikes`) and how many likes the row carries (an
+  // embedded aggregate on the board's own query).
+  const server = { on: liked.has(ranking.id), count: likeCount(ranking) };
+  /**
+   * Both facts are wanted before the optimistic pair steps aside, because they
+   * land in either order: the set first showed the count dropping back for a
+   * frame, the row first showed it one too high (#86). `base` is the count at
+   * the moment of the press, so a like from somebody else arriving in the same
+   * window still counts as the server having moved and nothing sticks.
+   */
+  const [wish, setWish] = useOptimisticMark<
+    { on: boolean; count: number; base: number },
+    { on: boolean; count: number }
+  >(server, (w, s) => w.on === s.on && s.count !== w.base);
   const [invitation, setInvitation] = useState<string | null>(null);
-  if (seen !== mine) {
-    setSeen(mine);
-    setPending(null);
-  }
-  const on = pending ?? mine;
-  const count = likeCount(ranking) + (pending === null ? 0 : pending ? 1 : -1);
+  const on = wish?.on ?? server.on;
+  const count = wish?.count ?? server.count;
 
   // Your own ranking can't be liked (no self-likes, #42), so the column holds
   // the count alone — and holds its width regardless, or the reviews beside it
@@ -743,12 +774,12 @@ function LikeControl({
             return;
           }
           const next = !on;
-          setPending(next);
+          setWish({ on: next, count: count + (next ? 1 : -1), base: server.count });
           const { error } = await setLike(ranking.id, userId, next);
           if (error) {
             // Rejected — a ban, a stale session, a policy the client didn't
             // know about. Put the count back and say what happened.
-            setPending(null);
+            setWish(null);
             setInvitation(error);
             return;
           }
@@ -933,20 +964,9 @@ function Heart({
   onChanged: () => void;
 }) {
   const own = userId === ranking.user_id;
-  // The write round-trips and then the whole board refetches before the glyph
-  // would move, which is a visible dead beat on the most repeated interaction
-  // on the site. Flip locally first; `pending` is cleared once the refetch
-  // brings the server's answer back, and dropped on a rejected write.
-  const [pending, setPending] = useState<boolean | null>(null);
-  // Adjusted during render rather than in an effect: when the refetch brings a
-  // new server value the optimistic one is spent, and an effect would render
-  // the stale glyph once before correcting it.
-  const [seen, setSeen] = useState(ranking.hearted);
-  if (seen !== ranking.hearted) {
-    setSeen(ranking.hearted);
-    setPending(null);
-  }
-  const hearted = pending ?? ranking.hearted;
+  // One fact, so the mark steps aside as soon as the server agrees with it.
+  const [wish, setWish] = useOptimisticMark<boolean, boolean>(ranking.hearted, (w, s) => w === s);
+  const hearted = wish ?? ranking.hearted;
 
   // Every variant is the same fixed width so the feed columns line up.
   if (!own) {
@@ -973,12 +993,12 @@ function Heart({
       }`}
       onClick={async () => {
         const next = !hearted;
-        setPending(next);
+        setWish(next);
         const { error } = await setHearted(ranking.id, next);
         if (error) {
           // Rejected — banned account, expired session, a policy change. Put
           // the glyph back rather than letting a later refetch snap it.
-          setPending(null);
+          setWish(null);
           console.error('lunchboxd: heart failed —', error);
           return;
         }
