@@ -32,8 +32,10 @@ import {
 } from './data';
 import { StarInput, Stars } from './Stars';
 import { HASHTAG_RE, parseHash, timeAgo, type Route } from './text';
+import { profileTags, TAG_STYLES, type ProfileBadges, type TagKind } from './tags';
 
 export { hashtagsIn, timeAgo } from './text';
+export { profileTags, SELF_TAGS, type ProfileBadges, type TagKind } from './tags';
 export type { Route } from './text';
 
 export const panel = 'rounded-(--radius-card) border border-edge bg-panel shadow-(--shadow-hard)';
@@ -239,18 +241,6 @@ export function CategoryLink({ name, className = '' }: { name: string; className
  * SELF_TAGS. Someone can wear both kinds at once — the granted ones don't
  * spend the single flair slot.
  */
-export type TagKind = 'admin' | 'supporter' | 'peloton' | 'zwift' | 'runner';
-
-export const SELF_TAGS: readonly TagKind[] = ['peloton', 'zwift', 'runner'];
-
-const TAG_STYLES: Record<TagKind, { label: string; tone: string }> = {
-  admin: { label: 'Admin', tone: 'text-admin' },
-  supporter: { label: 'Supporter', tone: 'text-supporter' },
-  peloton: { label: 'Peloton', tone: 'text-peloton' },
-  zwift: { label: 'Zwift', tone: 'text-zwift' },
-  runner: { label: 'Runner', tone: 'text-runner' },
-};
-
 export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
   const { label, tone } = TAG_STYLES[kind];
   return (
@@ -263,24 +253,6 @@ export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
     </span>
   );
 }
-
-/** The tags a profile wears, in display order: granted first, then flair. */
-export function profileTags(p: ProfileBadges | null): TagKind[] {
-  if (!p) return [];
-  // Narrowed to SELF_TAGS rather than to TAG_STYLES: people write their own
-  // `tags`, so matching against every known chip would be one dropped check
-  // constraint away from letting somebody render their own Supporter badge.
-  const flair = (p.tags ?? []).filter((t): t is TagKind =>
-    (SELF_TAGS as readonly string[]).includes(t),
-  );
-  const granted: TagKind[] = [];
-  if (p.is_admin) granted.push('admin');
-  if (p.is_supporter) granted.push('supporter');
-  return [...granted, ...flair];
-}
-
-/** The fields of a profile that decide which chips sit after its handle. */
-type ProfileBadges = { is_admin?: boolean; is_supporter?: boolean; tags?: string[] };
 
 export function ProfileLink({
   username,
