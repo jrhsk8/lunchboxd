@@ -257,6 +257,14 @@ export function accentToken(accent: CardAccentKey): string {
  * profile header and the Eaters tab map a row of this shape into `CardStats`
  * through {@link cardStatsFrom} — one mapping, so a card can't say different
  * things about the same person depending on which page drew it.
+ *
+ * Every score is `number | null`, matching the generated types. This file used
+ * to declare them `number | string` on the belief that Postgres `numeric`
+ * arrives as a string over PostgREST; checked against the live view on
+ * 2026-07-25, it does not — `avg_score` comes back as an unquoted JSON number
+ * (4.3333333333333333) and parses as one. The two halves of the file
+ * disagreed, and the half that was wrong is the one a `"4.25" + 1` would have
+ * come from (#97).
  */
 export type CardStatsRow = {
   created_at: string | null;
@@ -264,28 +272,28 @@ export type CardStatsRow = {
   review_count: number | null;
   category_count: number | null;
   hearts_given: number | null;
-  avg_score: number | string | null;
+  avg_score: number | null;
   invented_count: number | null;
   likes_received: number | null;
   likes_given: number | null;
   best_food: string | null;
-  best_score: number | string | null;
+  best_score: number | null;
   worst_food: string | null;
-  worst_score: number | string | null;
+  worst_score: number | null;
   top_category: string | null;
   top_category_count: number | null;
   kindest_category: string | null;
-  kindest_score: number | string | null;
+  kindest_score: number | null;
   harshest_category: string | null;
-  harshest_score: number | string | null;
+  harshest_score: number | null;
 };
 
 export function cardStatsFrom(row: CardStatsRow): CardStats {
   // A named stat needs both halves: "kindest category" with a name and no
   // score is not a dash for want of data, it's a bug, and rendering it as a
   // dash is how it would stay one.
-  const named = (name: string | null, value: number | string | null) =>
-    name === null || value === null ? null : { name, value: Number(value) };
+  const named = (name: string | null, value: number | null) =>
+    name === null || value === null ? null : { name, value };
   return {
     likesReceived: Number(row.likes_received ?? 0),
     likesGiven: Number(row.likes_given ?? 0),

@@ -214,16 +214,18 @@ describe('cardStatsFrom', () => {
     expect(stats.since).toBeNull();
   });
 
-  it('coerces the numerics Postgres sends over as strings', () => {
-    // numeric arrives as a string through PostgREST, and a card that added 1
-    // to it would render "4.251".
+  it('carries the scores through as the numbers they arrive as', () => {
+    // This file used to claim numeric came over PostgREST as a string and
+    // coerce every score on the way past. Checked against the live view on
+    // 2026-07-25, avg_score arrives as an unquoted JSON number (#97). The
+    // value below is what JSON.parse gives back for the view's own output.
     const stats = cardStatsFrom({
       ...empty,
-      avg_score: '4.25',
+      avg_score: 4.333333333333333,
       best_food: 'Pizza',
-      best_score: '5',
+      best_score: 5,
     });
-    expect(stats.average).toBe(4.25);
+    expect(stats.average).toBe(4.333333333333333);
     expect(stats.best).toEqual({ name: 'Pizza', value: 5 });
   });
 

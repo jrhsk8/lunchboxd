@@ -12,22 +12,39 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cardStatsFrom, type CardStats, type CardStatsRow } from './calling-card';
+import { cardStatsFrom, type CardStats } from './calling-card';
 import type { Database } from './database.types';
 import { supabase } from './supabase';
 import { cleanHashtag, nextTopSlot, PG, writeError, type WriteError } from './text';
 
-export type CategoryStat = {
-  id: string;
-  name: string;
-  ranking_count: number;
-  ranker_count: number;
-  avg_score: number | null;
-  last_ranked_at: string | null;
-  weighted_score: number | null;
-  /** Who invented it. Null once that account is deleted; nobody inherits it. */
-  created_by: string | null;
-};
+/** A row of one of the schema's views, as the generator describes it. */
+type ViewRow<V extends keyof Database['lunchboxd']['Views']> =
+  Database['lunchboxd']['Views'][V]['Row'];
+
+/**
+ * A view row with the columns this client relies on narrowed to non-null.
+ *
+ * Postgres cannot promise a view's columns are non-null, so the generator
+ * types every one of them nullable and the client used to answer with a
+ * hand-written transcription of the same columns, asserted over the generated
+ * row — which meant a renamed column still compiled, defeating the whole point
+ * of generating the types (#96).
+ *
+ * Deriving instead leaves exactly one claim per query, and it is a real claim
+ * about the view rather than a second copy of its shape: `category_stats` is
+ * built from `categories`, whose id and name are `not null`, so those columns
+ * cannot arrive null however the generator has to type them.
+ */
+type Guaranteed<T, K extends keyof T> = Omit<T, K> & { [P in K]-?: NonNullable<T[P]> };
+
+/**
+ * A category and its numbers. `created_by` stays nullable: it is null once the
+ * account that invented it is deleted, and nobody inherits it.
+ */
+export type CategoryStat = Guaranteed<
+  ViewRow<'category_stats'>,
+  'id' | 'name' | 'ranking_count' | 'ranker_count'
+>;
 
 export type ProfileMeta = {
   username: string;
@@ -92,12 +109,10 @@ export type ProfileRanking = Activity & { category_id: string };
  * capped, and deriving these from that array made a heavy eater's "lifetime
  * average" silently the average of their most recent page.
  */
-export type ProfileStats = {
-  ranking_count: number;
-  category_count: number;
-  hearted_count: number;
-  avg_score: number | null;
-};
+export type ProfileStats = Guaranteed<
+  ViewRow<'profile_stats'>,
+  'ranking_count' | 'category_count' | 'hearted_count'
+>;
 
 /**
  * What the UI shows when a query fails.
@@ -450,8 +465,9 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
  * thing that needs these, they cost a pile of per-person aggregates, and the
  * Eaters tab will later want the same view for many profiles at once.
  *
- * Postgres `numeric` arrives as a string over PostgREST, so every score is
- * pushed through `Number` here rather than at each render site.
+ * The scores arrive as JSON numbers; `cardStatsFrom` is still the one place
+ * a row becomes a `CardStats`, so a card says the same thing whichever page
+ * drew it.
  */
 export function useCardStats(userId: string | null, version: number) {
   const [stats, setStats] = useState<CardStats | null>(null);
@@ -557,18 +573,10 @@ export function useMyLikes(userId: string | null, version: number) {
 
 export { cardStatsFrom };
 
-export type Eater = CardStatsRow & {
-  user_id: string;
-  username: string;
-  is_admin: boolean;
-  is_supporter: boolean;
-  tags: string[] | null;
-  card_slot_1: string | null;
-  card_slot_2: string | null;
-  card_slot_3: string | null;
-  card_accent: string | null;
-  last_ranked_at: string | null;
-};
+export type Eater = Guaranteed<
+  ViewRow<'eaters'>,
+  'user_id' | 'username' | 'is_admin' | 'is_supporter'
+>;
 
 export type EaterSort = 'recent' | 'rankings' | 'likes' | 'az';
 
@@ -633,7 +641,7 @@ export function useEaters(sort: EaterSort, shown: number, version: number) {
           return;
         }
         setError(false);
-        setItems((data ?? []) as unknown as Eater[]);
+        setItems((data ?? []) as Eater[]);
         setTotal(count ?? 0);
       });
     return () => {
