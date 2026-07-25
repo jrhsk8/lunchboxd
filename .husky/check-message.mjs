@@ -41,7 +41,13 @@ if (!generated && !RELEASE.test(subject)) {
   if (/[.!?]$/.test(subject)) {
     problems.push('Subject ends with punctuation; it takes none.');
   }
-  if (!/^[A-Z]/.test(subject)) {
+  // Sentence case, with one exception: a subject may open with an identifier
+  // the code actually spells that way. Capitalising `useCategoryNames` would
+  // name a symbol that doesn't exist, so the rule would be demanding a lie.
+  const opensWithIdentifier = /^(`|[a-z][A-Za-z0-9]*[A-Z]|[a-z][a-z0-9]*[._][A-Za-z0-9])/.test(
+    subject,
+  );
+  if (!/^[A-Z]/.test(subject) && !opensWithIdentifier) {
     problems.push('Subject starts lowercase; it is sentence case.');
   }
 }

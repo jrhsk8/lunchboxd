@@ -85,6 +85,8 @@ The licensed exception is `deploy.md`'s **"History, not a live instruction"** co
 
 One line, **≤ 72 characters**, sentence case, no trailing period, **present indicative** — "Guests get a serial handle", not "Add serial handles". It names the change from the reader's side rather than the diff's.
 
+Sentence case has one exception: a subject may open with an **identifier the code spells that way** — `useCategoryNames goes, having never been called`. Capitalising it would name a symbol that doesn't exist.
+
 An area prefix (`Mobile:`, `Deploy docs:`) is optional and earns its place when the subject would otherwise be ambiguous about where the change lands. It is a phrase, never a label from a fixed set: there is no `feat:`/`fix:` convention here and none is coming.
 
 ### The body
