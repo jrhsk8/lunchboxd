@@ -428,30 +428,6 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
 }
 
 /**
- * Every category name, for the rank form's type-ahead. Cheap enough to hold in
- * full: it's one short string per category and the list is already fetched for
- * the board.
- */
-export function useCategoryNames(version: number) {
-  const [names, setNames] = useState<string[]>([]);
-  useEffect(() => {
-    if (!supabase) return;
-    let alive = true;
-    supabase
-      .from('categories')
-      .select('name')
-      .order('name')
-      .then(({ data, error }) => {
-        if (alive && !error) setNames((data ?? []).map((c) => c.name));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [version]);
-  return names;
-}
-
-/**
  * The numbers behind every stat a calling card could show, for one person.
  *
  * Its own query rather than more columns on `useProfile`: the card is the only
