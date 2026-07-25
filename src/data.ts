@@ -10,7 +10,7 @@
  * whatever is on screen. See data-model.md before changing either.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cardStatsFrom, type CardStats, type CardStatsRow } from './calling-card';
 import type { Database } from './database.types';
@@ -213,7 +213,26 @@ export function useBoard() {
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
 
-  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  /**
+   * Bump the counter, at most once per burst.
+   *
+   * A successful write bumps this directly *and* comes back through the
+   * realtime subscription a moment later, so the tab that made the change used
+   * to refetch the board, the activity feed, the like set and the unread count
+   * twice — and `category_stats` aggregates every ranking in the table on each
+   * pass. The window coalesces the write and its own echo into one refetch,
+   * the way the focus/visibility pair below was already debounced (#109).
+   *
+   * 250ms rather than something tighter: the echo arrives over a websocket
+   * after a Postgres commit, which is comfortably longer than a frame and
+   * still far below what reads as lag on a list that just changed.
+   */
+  const pending = useRef(0);
+  const refresh = useCallback(() => {
+    clearTimeout(pending.current);
+    pending.current = setTimeout(() => setVersion((v) => v + 1), 250);
+  }, []);
+  useEffect(() => () => clearTimeout(pending.current), []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -266,19 +285,16 @@ export function useBoard() {
     // was asleep when the event fired. There is deliberately no interval —
     // `category_stats` aggregates every ranking in the table, and a poll in
     // every open tab recomputed it site-wide four times a minute forever.
-    // Focus and visibilitychange both fire on the same tab switch, so the
-    // refetch is debounced to one.
-    let pending = 0;
+    // Focus and visibilitychange both fire on the same tab switch; `refresh`
+    // coalesces the pair into one refetch on its own.
     const onWake = () => {
       if (document.visibilityState === 'hidden') return;
-      clearTimeout(pending);
-      pending = setTimeout(refresh, 200);
+      refresh();
     };
     window.addEventListener('focus', onWake);
     document.addEventListener('visibilitychange', onWake);
     return () => {
       client.removeChannel(channel);
-      clearTimeout(pending);
       window.removeEventListener('focus', onWake);
       document.removeEventListener('visibilitychange', onWake);
     };
