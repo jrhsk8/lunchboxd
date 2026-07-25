@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import type { CardStats } from './calling-card';
+import { cardStatsFrom, type CardStats, type CardStatsRow } from './calling-card';
 import { supabase } from './supabase';
 import { nextTopSlot, PG, writeError, type WriteError } from './text';
 
@@ -539,57 +539,7 @@ export function useMyLikes(userId: string | null, version: number) {
   return liked;
 }
 
-/**
- * The columns `profile_card_stats` exposes, as the client reads them. Both the
- * profile header and the Eaters tab map a row of this shape into `CardStats`
- * through {@link cardStatsFrom} — one mapping, so a card can't say different
- * things about the same person depending on which page drew it.
- */
-type CardStatsRow = {
-  created_at: string | null;
-  ranking_count: number | null;
-  review_count: number | null;
-  category_count: number | null;
-  hearts_given: number | null;
-  avg_score: number | string | null;
-  invented_count: number | null;
-  likes_received: number | null;
-  likes_given: number | null;
-  best_food: string | null;
-  best_score: number | string | null;
-  worst_food: string | null;
-  worst_score: number | string | null;
-  top_category: string | null;
-  top_category_count: number | null;
-  kindest_category: string | null;
-  kindest_score: number | string | null;
-  harshest_category: string | null;
-  harshest_score: number | string | null;
-};
-
-export function cardStatsFrom(row: CardStatsRow): CardStats {
-  // A named stat needs both halves: "kindest category" with a name and no
-  // score is not a dash for want of data, it's a bug, and rendering it as a
-  // dash is how it would stay one.
-  const named = (name: string | null, value: number | string | null) =>
-    name === null || value === null ? null : { name, value: Number(value) };
-  return {
-    likesReceived: Number(row.likes_received ?? 0),
-    likesGiven: Number(row.likes_given ?? 0),
-    heartsGiven: Number(row.hearts_given ?? 0),
-    rankings: Number(row.ranking_count ?? 0),
-    reviews: Number(row.review_count ?? 0),
-    categories: Number(row.category_count ?? 0),
-    invented: Number(row.invented_count ?? 0),
-    average: row.avg_score === null ? null : Number(row.avg_score),
-    best: named(row.best_food, row.best_score),
-    worst: named(row.worst_food, row.worst_score),
-    topCategory: named(row.top_category, row.top_category_count),
-    kindest: named(row.kindest_category, row.kindest_score),
-    harshest: named(row.harshest_category, row.harshest_score),
-    since: row.created_at,
-  };
-}
+export { cardStatsFrom };
 
 export type Eater = CardStatsRow & {
   user_id: string;

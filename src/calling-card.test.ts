@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cardStatsFrom,
   CARD_STAT_GROUPS,
   CARD_STAT_KEYS,
   CARD_STAT_LABELS,
@@ -168,5 +169,110 @@ describe('the accent', () => {
   it('drops a swatch that is not in the roster', () => {
     expect(resolveAccent('hotpink', true)).toBe(null);
     expect(resolveAccent(null, true)).toBe(null);
+  });
+});
+
+describe('cardStatsFrom', () => {
+  /** Every column null, which is what a brand-new profile's row looks like. */
+  const empty = {
+    created_at: null,
+    ranking_count: null,
+    review_count: null,
+    category_count: null,
+    hearts_given: null,
+    avg_score: null,
+    invented_count: null,
+    likes_received: null,
+    likes_given: null,
+    best_food: null,
+    best_score: null,
+    worst_food: null,
+    worst_score: null,
+    top_category: null,
+    top_category_count: null,
+    kindest_category: null,
+    kindest_score: null,
+    harshest_category: null,
+    harshest_score: null,
+  };
+
+  it('reads counters as zero and the average as absent', () => {
+    // The rule the whole card rests on: a dash is never a zero. No rankings
+    // yet is nought rankings; no average yet is not an average of nought.
+    const stats = cardStatsFrom(empty);
+    expect(stats.rankings).toBe(0);
+    expect(stats.likesReceived).toBe(0);
+    expect(stats.average).toBeNull();
+    expect(stats.since).toBeNull();
+  });
+
+  it('coerces the numerics Postgres sends over as strings', () => {
+    // numeric arrives as a string through PostgREST, and a card that added 1
+    // to it would render "4.251".
+    const stats = cardStatsFrom({
+      ...empty,
+      avg_score: '4.25',
+      best_food: 'Pizza',
+      best_score: '5',
+    });
+    expect(stats.average).toBe(4.25);
+    expect(stats.best).toEqual({ name: 'Pizza', value: 5 });
+  });
+
+  it('drops a named stat that is missing either half', () => {
+    // A name with no score is a bug, not an absence, and rendering it as a
+    // dash is how it would stay one.
+    expect(cardStatsFrom({ ...empty, kindest_category: 'Soup' }).kindest).toBeNull();
+    expect(cardStatsFrom({ ...empty, kindest_score: 4.5 }).kindest).toBeNull();
+    expect(
+      cardStatsFrom({ ...empty, kindest_category: 'Soup', kindest_score: 4.5 }).kindest,
+    ).toEqual({ name: 'Soup', value: 4.5 });
+  });
+
+  it('keeps a zero apart from an absence on a named stat', () => {
+    // top_category_count of 0 is a real number, not a missing half.
+    expect(
+      cardStatsFrom({ ...empty, top_category: 'Toast', top_category_count: 0 }).topCategory,
+    ).toEqual({ name: 'Toast', value: 0 });
+  });
+
+  it('maps every key of a fully populated row', () => {
+    const stats = cardStatsFrom({
+      created_at: '2026-07-01T00:00:00Z',
+      ranking_count: 12,
+      review_count: 4,
+      category_count: 5,
+      hearts_given: 3,
+      avg_score: 3.75,
+      invented_count: 2,
+      likes_received: 9,
+      likes_given: 7,
+      best_food: 'Costco slice',
+      best_score: 5,
+      worst_food: 'Airport sushi',
+      worst_score: 1,
+      top_category: 'Pizza',
+      top_category_count: 6,
+      kindest_category: 'Soup',
+      kindest_score: 4.6,
+      harshest_category: 'Salad',
+      harshest_score: 2.1,
+    });
+    expect(stats).toEqual({
+      likesReceived: 9,
+      likesGiven: 7,
+      heartsGiven: 3,
+      rankings: 12,
+      reviews: 4,
+      categories: 5,
+      invented: 2,
+      average: 3.75,
+      best: { name: 'Costco slice', value: 5 },
+      worst: { name: 'Airport sushi', value: 1 },
+      topCategory: { name: 'Pizza', value: 6 },
+      kindest: { name: 'Soup', value: 4.6 },
+      harshest: { name: 'Salad', value: 2.1 },
+      since: '2026-07-01T00:00:00Z',
+    });
   });
 });
