@@ -14,6 +14,30 @@ The Postgres schema, the RLS matrix, and how the client keeps its views fresh. S
 - **`category_stats`** (view, security_invoker) — one row per category: ranking_count, ranker_count, avg_score, last_ranked_at, weighted_score, created_by. The global leaderboard. `created_by` rides along so the client can tell whether to offer the inventor's delete button without a query per category; it is appended last because `create or replace view` may only add columns at the end. **`avg_score` is one-person-one-vote**: each person's scores within the category are averaged first, then those averages are averaged. **`weighted_score` is what the board sorts by** — a Bayesian prior of three notional voters at the site-wide mean, so a new category with a single 5.0 doesn't outrank fifty rankings averaging 4.8. Read `avg_score` when displaying a category's score, `weighted_score` only for ordering.
 - **`profile_stats`** (view, security_invoker) — one row per profile: ranking_count, category_count, hearted_count, avg_score. The profile page's tiles read from here rather than deriving them from the capped ranking list, which made a heavy user's "lifetime average" the average of their most recent 500.
 
+## The Eaters view
+
+`eaters` (view, security_invoker, `20260725040000_eaters.sql`) — one row per person **who has ever ranked**, carrying the handle, the badges, the three chosen card slots and the accent, every column of `profile_card_stats`, and `last_ranked_at`.
+
+It exists so the Eaters tab can sort and page **in the database**. The tab shows 24 of seventy-odd across four orderings; doing that client-side would mean fetching every eater's whole card to draw a third of them, and the cap would be a slice rather than a limit.
+
+Two things it deliberately does rather than leaving to the client. `where ranking_count > 0` is the whole membership rule, and it takes banned accounts out for free — `ban_profile` deletes the target's rankings, so the count is zero and the row is gone; there is no `banned_at` filter to forget. And the columns are **named rather than `select *`**: a card can show any of the fourteen stats, so a subset would render a dash for whoever chose the missing one — and a view built on a star freezes its column list at creation anyway, which makes the star a claim about staying in step that isn't true.
+
+`last_ranked_at` lives here and not in `profile_card_stats` because no card stat wants it: "eating since" is the profile's `created_at`, which is when somebody signed up, not when they last showed up.
+
+The client maps a row into `CardStats` through **`cardStatsFrom`** (data.ts), shared with `useCardStats` — one mapping, so a card can't say different things about the same person depending on which page drew it.
+
+## Notifications
+
+`notifications` (`20260725030000_notifications.sql`) — `user_id` (the **recipient**), `actor_id`, `ranking_id`, `kind` (checked, `'like'` today), `created_at`, `read_at`. Unique on `(user_id, actor_id, ranking_id, kind)`, so like/unlike/like again is one row rather than three.
+
+**This is the only private table here.** Everything else on the site is world-readable; `anon` has no grant at all on this one, and the select policy is `user_id = auth.uid()`. There is **no insert or delete grant for anybody** — rows arrive from the trigger and leave with the like they describe, so a notification can be neither forged nor quietly deleted by the person it embarrasses. The update grant is **column-scoped to `read_at`**, which is what stops a recipient rewriting who a notification came from; RLS can't narrow to a column, so the grant has to.
+
+Two triggers on `likes` keep it in step: `likes_notify_author` writes the row (SECURITY DEFINER — the liker has no insert grant, and shouldn't, because the row belongs to the person being told), `likes_unnotify_author` removes it. **Retention is therefore not a policy but a consequence**: a like disappears when it's taken back, when the ranking is deleted (cascade), and when the ranking is edited (§ Hearts / the clear-likes trigger), and its notification goes with it every time. Nothing accumulates and there is no age rule.
+
+Per-item `read_at` rather than a single `seen_at` on the profile row is a cost the **surface** chose: a page that lists items invites marking one read (app-shell.md § Pages and routing, #46). Opening the page marks everything read (`markNotificationsRead`), but the unread dots stay drawn for that visit — clearing them the instant they render would mean a page that never shows you what was new.
+
+Guests receive notifications. They can't give a like (§ Likes / #42), but they can be liked, and reading your own news needs no email.
+
 ## Repeat rankings
 
 The same person may log the same food in the same category **as many times as they eat it, up to ten in a rolling 24 hours** (`20260725013000_allow_repeat_rankings.sql`). This reversed `rankings_one_per_food_idx` the same day it shipped — owner-ruled off a user report: someone had several Zyns over an evening and the site refused every one after the first.
@@ -47,11 +71,12 @@ Granting more is one statement: `update lunchboxd.profiles set is_supporter = tr
 
 ## RLS matrix
 
-| Table      | select   | insert                               | update                                                  | delete                      |
-| ---------- | -------- | ------------------------------------ | ------------------------------------------------------- | --------------------------- |
-| profiles   | everyone | trigger only                         | own row, not banned, `username`+`tags` columns only     | —                           |
-| categories | everyone | own (`created_by = uid`), not banned | —                                                       | ban / delete functions only |
-| rankings   | everyone | own, not banned                      | own, `(hearted, review, score, food, top_rank)` columns | own, or ban function        |
+| Table         | select                             | insert                               | update                                                  | delete                      |
+| ------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------------- | --------------------------- |
+| profiles      | everyone                           | trigger only                         | own row, not banned, `username`+`tags` columns only     | —                           |
+| categories    | everyone                           | own (`created_by = uid`), not banned | —                                                       | ban / delete functions only |
+| rankings      | everyone                           | own, not banned                      | own, `(hearted, review, score, food, top_rank)` columns | own, or ban function        |
+| notifications | **own row only** (no `anon` grant) | trigger only (no grant)              | own row, `read_at` column only                          | trigger only (no grant)     |
 
 Grants are explicit per table (nothing is granted by default in a custom schema); RLS narrows on top.
 

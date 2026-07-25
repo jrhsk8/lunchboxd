@@ -32,6 +32,13 @@ export type Database = {
             foreignKeyName: 'categories_created_by_fkey';
             columns: ['created_by'];
             isOneToOne: false;
+            referencedRelation: 'eaters';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'categories_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
             referencedRelation: 'profile_card_stats';
             referencedColumns: ['user_id'];
           },
@@ -82,6 +89,13 @@ export type Database = {
             foreignKeyName: 'likes_user_id_fkey';
             columns: ['user_id'];
             isOneToOne: false;
+            referencedRelation: 'eaters';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'likes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
             referencedRelation: 'profile_card_stats';
             referencedColumns: ['user_id'];
           },
@@ -94,6 +108,100 @@ export type Database = {
           },
           {
             foreignKeyName: 'likes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          actor_id: string;
+          created_at: string;
+          id: string;
+          kind: string;
+          ranking_id: string;
+          read_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          actor_id: string;
+          created_at?: string;
+          id?: string;
+          kind: string;
+          ranking_id: string;
+          read_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          actor_id?: string;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          ranking_id?: string;
+          read_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'eaters';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'notifications_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profile_card_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'notifications_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profile_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'notifications_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_ranking_id_fkey';
+            columns: ['ranking_id'];
+            isOneToOne: false;
+            referencedRelation: 'rankings';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'eaters';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'notifications_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profile_card_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'notifications_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profile_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'notifications_user_id_fkey';
             columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
@@ -196,6 +304,13 @@ export type Database = {
             foreignKeyName: 'rankings_user_id_fkey';
             columns: ['user_id'];
             isOneToOne: false;
+            referencedRelation: 'eaters';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'rankings_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
             referencedRelation: 'profile_card_stats';
             referencedColumns: ['user_id'];
           },
@@ -233,6 +348,13 @@ export type Database = {
             foreignKeyName: 'categories_created_by_fkey';
             columns: ['created_by'];
             isOneToOne: false;
+            referencedRelation: 'eaters';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'categories_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
             referencedRelation: 'profile_card_stats';
             referencedColumns: ['user_id'];
           },
@@ -251,6 +373,40 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      eaters: {
+        Row: {
+          avg_score: number | null;
+          best_food: string | null;
+          best_score: number | null;
+          card_accent: string | null;
+          card_slot_1: string | null;
+          card_slot_2: string | null;
+          card_slot_3: string | null;
+          category_count: number | null;
+          created_at: string | null;
+          harshest_category: string | null;
+          harshest_score: number | null;
+          hearts_given: number | null;
+          invented_count: number | null;
+          is_admin: boolean | null;
+          is_supporter: boolean | null;
+          kindest_category: string | null;
+          kindest_score: number | null;
+          last_ranked_at: string | null;
+          likes_given: number | null;
+          likes_received: number | null;
+          ranking_count: number | null;
+          review_count: number | null;
+          tags: string[] | null;
+          top_category: string | null;
+          top_category_count: number | null;
+          user_id: string | null;
+          username: string | null;
+          worst_food: string | null;
+          worst_score: number | null;
+        };
+        Relationships: [];
       };
       profile_card_stats: {
         Row: {

@@ -56,6 +56,7 @@ export type Route =
   | { page: 'profile'; username: string }
   | { page: 'category'; name: string }
   | { page: 'tag'; tag: string }
+  | { page: 'notifications' }
   | { page: 'terms' };
 
 /**
@@ -72,6 +73,7 @@ export function useRoute(): Route {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   if (hash === '#/terms') return { page: 'terms' };
+  if (hash === '#/notifications') return { page: 'notifications' };
   const m = /^#\/([uct])\/(.+)$/.exec(hash);
   if (m) {
     try {
@@ -84,6 +86,48 @@ export function useRoute(): Route {
     }
   }
   return { page: 'home' };
+}
+
+/**
+ * The bell, and the count of what's waiting behind it.
+ *
+ * A link rather than a dropdown: the notifications are a page (#46), and a
+ * header control that opens a panel *and* is a link is two affordances in one
+ * 28px target. The glyph is drawn rather than typed — the site has one
+ * typeface and no icon set, and the nearest characters (🔔, ♪) either render
+ * as emoji on some platforms or don't read as a bell at all.
+ */
+export function NotificationBell({ unread }: { unread: number }) {
+  return (
+    <a
+      href="#/notifications"
+      title={unread > 0 ? `${unread} new` : 'Notifications'}
+      aria-label={unread > 0 ? `notifications, ${unread} new` : 'notifications'}
+      className="relative flex items-center rounded-lg border border-edge bg-raised px-2 py-1 text-faint transition-colors hover:border-edge-hover hover:text-clay"
+    >
+      <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" aria-hidden>
+        <path
+          d="M12 3a5.5 5.5 0 0 0-5.5 5.5c0 3.2-.7 5-1.4 6a.8.8 0 0 0 .65 1.25h12.5A.8.8 0 0 0 18.9 14.5c-.7-1-1.4-2.8-1.4-6A5.5 5.5 0 0 0 12 3z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M10 18.5a2 2 0 0 0 4 0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+      </svg>
+      {unread > 0 && (
+        <span className="ml-1 rounded-full bg-clay px-1.5 py-px text-[10px] font-bold text-bg tabular-nums">
+          {unread}
+        </span>
+      )}
+    </a>
+  );
 }
 
 export function profileHref(username: string) {

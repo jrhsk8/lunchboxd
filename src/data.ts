@@ -465,24 +465,7 @@ export function useCardStats(userId: string | null, version: number) {
           if (error) console.error('lunchboxd: card stats failed —', error.message);
           return;
         }
-        const named = (name: string | null, value: number | string | null) =>
-          name === null || value === null ? null : { name, value: Number(value) };
-        setStats({
-          likesReceived: Number(data.likes_received ?? 0),
-          likesGiven: Number(data.likes_given ?? 0),
-          heartsGiven: Number(data.hearts_given ?? 0),
-          rankings: Number(data.ranking_count ?? 0),
-          reviews: Number(data.review_count ?? 0),
-          categories: Number(data.category_count ?? 0),
-          invented: Number(data.invented_count ?? 0),
-          average: data.avg_score === null ? null : Number(data.avg_score),
-          best: named(data.best_food, data.best_score),
-          worst: named(data.worst_food, data.worst_score),
-          topCategory: named(data.top_category, data.top_category_count),
-          kindest: named(data.kindest_category, data.kindest_score),
-          harshest: named(data.harshest_category, data.harshest_score),
-          since: data.created_at,
-        });
+        setStats(cardStatsFrom(data));
       });
     return () => {
       alive = false;
@@ -561,6 +544,251 @@ export function useMyLikes(userId: string | null, version: number) {
   }, [userId, version]);
 
   return liked;
+}
+
+/**
+ * The columns `profile_card_stats` exposes, as the client reads them. Both the
+ * profile header and the Eaters tab map a row of this shape into `CardStats`
+ * through {@link cardStatsFrom} — one mapping, so a card can't say different
+ * things about the same person depending on which page drew it.
+ */
+type CardStatsRow = {
+  created_at: string | null;
+  ranking_count: number | null;
+  review_count: number | null;
+  category_count: number | null;
+  hearts_given: number | null;
+  avg_score: number | string | null;
+  invented_count: number | null;
+  likes_received: number | null;
+  likes_given: number | null;
+  best_food: string | null;
+  best_score: number | string | null;
+  worst_food: string | null;
+  worst_score: number | string | null;
+  top_category: string | null;
+  top_category_count: number | null;
+  kindest_category: string | null;
+  kindest_score: number | string | null;
+  harshest_category: string | null;
+  harshest_score: number | string | null;
+};
+
+export function cardStatsFrom(row: CardStatsRow): CardStats {
+  // A named stat needs both halves: "kindest category" with a name and no
+  // score is not a dash for want of data, it's a bug, and rendering it as a
+  // dash is how it would stay one.
+  const named = (name: string | null, value: number | string | null) =>
+    name === null || value === null ? null : { name, value: Number(value) };
+  return {
+    likesReceived: Number(row.likes_received ?? 0),
+    likesGiven: Number(row.likes_given ?? 0),
+    heartsGiven: Number(row.hearts_given ?? 0),
+    rankings: Number(row.ranking_count ?? 0),
+    reviews: Number(row.review_count ?? 0),
+    categories: Number(row.category_count ?? 0),
+    invented: Number(row.invented_count ?? 0),
+    average: row.avg_score === null ? null : Number(row.avg_score),
+    best: named(row.best_food, row.best_score),
+    worst: named(row.worst_food, row.worst_score),
+    topCategory: named(row.top_category, row.top_category_count),
+    kindest: named(row.kindest_category, row.kindest_score),
+    harshest: named(row.harshest_category, row.harshest_score),
+    since: row.created_at,
+  };
+}
+
+export type Eater = CardStatsRow & {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_supporter: boolean;
+  tags: string[] | null;
+  card_slot_1: string | null;
+  card_slot_2: string | null;
+  card_slot_3: string | null;
+  card_accent: string | null;
+  last_ranked_at: string | null;
+};
+
+export type EaterSort = 'recent' | 'rankings' | 'likes' | 'az';
+
+const EATER_ORDER: Record<EaterSort, { column: string; ascending: boolean }> = {
+  recent: { column: 'last_ranked_at', ascending: false },
+  rankings: { column: 'ranking_count', ascending: false },
+  likes: { column: 'likes_received', ascending: false },
+  az: { column: 'username', ascending: true },
+};
+
+/** How many eaters the tab draws before the "Show more" button. */
+export const EATERS_PAGE = 24;
+
+/**
+ * The Eaters tab: everyone who has ever ranked, with what their card needs.
+ *
+ * Sorted and paged in the database rather than in the client. The tab shows 24
+ * of seventy-odd and offers four orderings; sorting here would mean fetching
+ * every eater and their whole card to draw a third of them, and the cap would
+ * be a slice rather than a limit. `count: 'exact'` rides along so the button
+ * can say how many are left rather than guessing whether any are.
+ *
+ * `shown` grows by a page at a time and resets whenever the sort changes — a
+ * new ordering is a new list, and keeping the old depth would silently show
+ * three pages of it.
+ */
+export function useEaters(sort: EaterSort, shown: number, version: number) {
+  const [items, setItems] = useState<Eater[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    const { column, ascending } = EATER_ORDER[sort];
+    supabase
+      .from('eaters')
+      .select('*', { count: 'exact' })
+      // Nulls last matters for `recent` only in theory — the view is filtered
+      // to people with a ranking, so last_ranked_at is never null — but the
+      // filter and the order are in different places and only one of them is
+      // obvious from here.
+      .order(column, { ascending, nullsFirst: false })
+      // A stable tiebreak, or two people with the same count swap places
+      // between pages and one of them is fetched twice while the other is
+      // never fetched at all.
+      .order('user_id', { ascending: true })
+      .range(0, shown - 1)
+      .then(({ data, count, error }) => {
+        if (!alive) return;
+        setLoaded(true);
+        if (error) {
+          console.error('lunchboxd: eaters failed —', error.message);
+          setError(true);
+          return;
+        }
+        setError(false);
+        setItems((data ?? []) as unknown as Eater[]);
+        setTotal(count ?? 0);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [sort, shown, version]);
+
+  return { items, total, loaded, error };
+}
+
+export type Notification = {
+  id: string;
+  created_at: string;
+  read_at: string | null;
+  kind: string;
+  actor: ProfileMeta | null;
+  rankings: { food: string; categories: { name: string } | null } | null;
+};
+
+/**
+ * Your notifications, newest first — the only private read on the site.
+ *
+ * Both foreign keys point at `profiles`, so the actor embed has to name the
+ * constraint (`profiles!notifications_actor_id_fkey`) or PostgREST can't tell
+ * which side is wanted and refuses the whole query.
+ *
+ * The row can outlive what it describes only in one direction: a ranking is
+ * deleted and the cascade takes the notification with it. `rankings` is
+ * nonetheless read as nullable — a null there means a race with a delete, and
+ * the row renders as its plain sentence rather than crashing the page.
+ */
+export function useNotifications(userId: string | null, version: number) {
+  const [items, setItems] = useState<Notification[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setItems([]);
+      setLoaded(true);
+      return;
+    }
+    let alive = true;
+    setLoaded(false);
+    supabase
+      .from('notifications')
+      .select(
+        'id, created_at, read_at, kind, actor:profiles!notifications_actor_id_fkey(username, is_admin, is_supporter, tags), rankings(food, categories(name))',
+      )
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (!alive) return;
+        setLoaded(true);
+        if (error) {
+          console.error('lunchboxd: notifications failed —', error.message);
+          setError(true);
+          return;
+        }
+        setError(false);
+        setItems((data ?? []) as unknown as Notification[]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, version]);
+
+  return { items, loaded, error };
+}
+
+/**
+ * How many are unread, for the bell. A `head` count rather than the list: the
+ * header asks on every page, and the answer is one number.
+ */
+export function useUnreadCount(userId: string | null, version: number) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setCount(0);
+      return;
+    }
+    let alive = true;
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null)
+      .then(({ count, error }) => {
+        if (!alive) return;
+        if (error) {
+          // The bell just doesn't light up. Not worth a visible failure.
+          console.error('lunchboxd: unread count failed —', error.message);
+          return;
+        }
+        setCount(count ?? 0);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, version]);
+
+  return count;
+}
+
+/**
+ * Mark everything read. Called when the page is opened, not per row: the page
+ * IS the reading of them, and a per-row "mark read" control on a list you are
+ * looking at is a control that does nothing you didn't just do.
+ *
+ * The unread marks stay on screen for the visit that cleared them — you get to
+ * see what was new. RLS scopes the update to your own rows and the grant is
+ * column-scoped to `read_at`, so this can't touch anything else.
+ */
+export async function markNotificationsRead(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .is('read_at', null);
+  if (error) console.error('lunchboxd: marking notifications read failed —', error.message);
 }
 
 /**

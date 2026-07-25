@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 
 import { KeepAccount, SignInCard, useAuth } from './auth';
+import { CallingCard } from './CallingCard';
 import {
+  cardStatsFrom,
   deleteCategory,
+  EATERS_PAGE,
+  markNotificationsRead,
   mergeCategories,
   rankFood,
   renameCategory,
   useBoard,
   useCategoryRankings,
   useCategoryStat,
+  useEaters,
   useMyLikes,
+  useNotifications,
   useTagReviews,
+  useUnreadCount,
   type CategoryStat,
+  type EaterSort,
   type Ranking,
 } from './data';
 import { ProfilePage } from './Profile';
@@ -27,8 +35,10 @@ import {
   LoadError,
   label,
   type LikeViewer,
+  NotificationBell,
   panel,
   profileHref,
+  profileTags,
   RankingRow,
   ReviewText,
   scoreTone,
@@ -37,6 +47,10 @@ import {
   UserLink,
   useRoute,
 } from './ui';
+
+/** The board's three views, in tab order — also the arrow-key order. */
+const TABS = ['categories', 'activity', 'eaters'] as const;
+type BoardTab = (typeof TABS)[number];
 
 const byName = (a: CategoryStat, b: CategoryStat) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -70,7 +84,8 @@ function Site() {
   // so a like lights up its own row the moment the refetch lands.
   const myLikes = useMyLikes(session?.user.id ?? null, version);
   const likeViewer: LikeViewer = !session ? 'out' : session.user.is_anonymous ? 'guest' : 'email';
-  const [tab, setTab] = useState<'categories' | 'activity'>('categories');
+  const unread = useUnreadCount(session?.user.id ?? null, version);
+  const [tab, setTab] = useState<BoardTab>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
 
   const routeKey =
@@ -82,7 +97,9 @@ function Site() {
           ? `t/${route.tag}`
           : route.page === 'terms'
             ? 'terms'
-            : 'home';
+            : route.page === 'notifications'
+              ? 'notifications'
+              : 'home';
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [routeKey]);
@@ -101,7 +118,9 @@ function Site() {
             ? `#${route.tag} — Lunchboxd`
             : route.page === 'terms'
               ? 'Terms of service — Lunchboxd'
-              : 'Lunchboxd: Food, Ranked';
+              : route.page === 'notifications'
+                ? 'Notifications — Lunchboxd'
+                : 'Lunchboxd: Food, Ranked';
   }, [route]);
 
   const totalRankings = stats.reduce((n, c) => n + c.ranking_count, 0);
@@ -148,6 +167,7 @@ function Site() {
             </span>
             {session && (
               <>
+                <NotificationBell unread={unread} />
                 {username ? (
                   <a
                     href={profileHref(username)}
@@ -184,9 +204,10 @@ function Site() {
             )}
           </span>
         </header>
-
         {route.page === 'terms' ? (
           <Terms />
+        ) : route.page === 'notifications' ? (
+          <NotificationsPage userId={session?.user.id ?? null} version={version} onRead={refresh} />
         ) : route.page === 'tag' ? (
           <TagPage tag={route.tag} version={version} />
         ) : route.page === 'category' ? (
@@ -249,12 +270,16 @@ function Site() {
                   onKeyDown={(e) => {
                     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
                     e.preventDefault();
-                    const next = tab === 'categories' ? 'activity' : 'categories';
+                    // Wraps both ways. With two tabs either direction reached
+                    // the other one; with three, stepping has to know which
+                    // way it's going.
+                    const step = e.key === 'ArrowRight' ? 1 : TABS.length - 1;
+                    const next = TABS[(TABS.indexOf(tab) + step) % TABS.length];
                     setTab(next);
                     document.getElementById(`tab-${next}`)?.focus();
                   }}
                 >
-                  {(['categories', 'activity'] as const).map((t) => (
+                  {TABS.map((t) => (
                     <button
                       key={t}
                       id={`tab-${t}`}
@@ -276,7 +301,9 @@ function Site() {
                 </div>
 
                 <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-                  {tab === 'categories' ? (
+                  {tab === 'eaters' ? (
+                    <EatersTab version={version} />
+                  ) : tab === 'categories' ? (
                     <CategoryBoard
                       stats={stats}
                       loaded={loaded}
@@ -302,7 +329,6 @@ function Site() {
             </div>
           </>
         )}
-
         {/* Wraps on phones: three items at 320px otherwise push the footer wider
           than the viewport. */}
         <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-2">
@@ -315,6 +341,196 @@ function Site() {
         </footer>
       </div>
     </LikesProvider>
+  );
+}
+
+const EATER_SORTS: { key: EaterSort; label: string }[] = [
+  { key: 'recent', label: 'Recent' },
+  { key: 'rankings', label: 'Rankings' },
+  { key: 'likes', label: 'Likes' },
+  { key: 'az', label: 'A–Z' },
+];
+
+/**
+ * The Eaters tab: everyone who has ever ranked, as their calling card.
+ *
+ * The card's second home (#44) — the profile shows you your own, and this is
+ * the only place the three stats somebody chose about themselves are visible
+ * to anybody else. A tab rather than a route, owner-ruled: it lives with the
+ * board rather than beside it, and the cost is that it can't be linked to.
+ *
+ * Cards, not rows: a compact row would scale further, but it would leave the
+ * card with one home and make the studio a private toy.
+ */
+function EatersTab({ version }: { version: number }) {
+  const [sort, setSort] = useState<EaterSort>('recent');
+  const [shown, setShown] = useState(EATERS_PAGE);
+  const { items, total, loaded, error } = useEaters(sort, shown, version);
+  const left = total - items.length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Four settings where the board next door has two, so the labels are
+          short and the row wraps rather than scrolling sideways. A radiogroup,
+          not a tablist: it picks an ordering, it doesn't switch panels. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span className="text-[11px] font-semibold tracking-wider text-faint uppercase">Sort</span>
+        <div
+          role="radiogroup"
+          aria-label="sort eaters"
+          className="flex flex-wrap gap-0.5 rounded-lg border border-edge bg-raised p-0.5"
+        >
+          {EATER_SORTS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              role="radio"
+              aria-checked={sort === s.key}
+              tabIndex={sort === s.key ? 0 : -1}
+              className={`cursor-pointer rounded-[6px] border-0 px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
+                sort === s.key ? 'bg-clay/15 text-ink' : 'bg-transparent text-dim hover:text-ink'
+              }`}
+              onClick={() => {
+                setSort(s.key);
+                // A new ordering is a new list: keeping the old depth would
+                // quietly show three pages of it.
+                setShown(EATERS_PAGE);
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error ? (
+        <LoadError />
+      ) : !loaded ? null : items.length === 0 ? (
+        <div className={`${panel} px-6 py-12 text-center`}>
+          <p className="m-0 text-[15px] font-semibold">Nobody has eaten yet</p>
+          <p className="mt-2 mb-0 text-sm text-dim">The first bite is yours.</p>
+        </div>
+      ) : (
+        <>
+          <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+            {items.map((e) => (
+              <li key={e.user_id} className="min-w-0">
+                <CallingCard
+                  handle={e.username}
+                  badges={profileTags({ ...e, tags: e.tags ?? undefined })}
+                  stats={cardStatsFrom(e)}
+                  slots={[e.card_slot_1, e.card_slot_2, e.card_slot_3]}
+                  accent={e.card_accent}
+                  isSupporter={e.is_supporter}
+                />
+              </li>
+            ))}
+          </ul>
+          {left > 0 && (
+            <button
+              type="button"
+              className={`${panel} cursor-pointer px-6 py-3 text-center text-sm font-semibold text-clay hover:text-clay-hover`}
+              onClick={() => setShown((n) => n + EATERS_PAGE)}
+            >
+              Show more ({left} to go)
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Everything that has happened to you: today, likes on your rankings.
+ *
+ * A page rather than a header dropdown or a line on your profile (#46). The
+ * cost is a table with per-item read state; what it buys is a place — a URL
+ * that can be linked, bookmarked and returned to, and room for follows (#36)
+ * and reports (#37) later without moving anyone's furniture.
+ *
+ * Opening the page is what marks them read, but the unread marks stay drawn
+ * for this visit: clearing them the instant they're rendered would mean
+ * arriving at a page that never shows you what was new.
+ */
+function NotificationsPage({
+  userId,
+  version,
+  onRead,
+}: {
+  userId: string | null;
+  version: number;
+  onRead: () => void;
+}) {
+  const { items, loaded, error } = useNotifications(userId, version);
+  const [marked, setMarked] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !loaded || marked) return;
+    if (!items.some((n) => n.read_at === null)) return;
+    setMarked(true);
+    markNotificationsRead().then(onRead);
+  }, [userId, loaded, items, marked, onRead]);
+
+  return (
+    <div>
+      <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
+        ← Back to the board
+      </a>
+      <p className={`${kicker} mt-4 mb-1.5`}>Notifications</p>
+      <h1 className="m-0 mb-5 text-[28px] font-bold">What people did with your rankings</h1>
+
+      {!userId ? (
+        <div className={`${panel} px-6 py-12 text-center`}>
+          <p className="m-0 text-[15px] font-semibold">Nothing to tell you yet</p>
+          <p className="mt-2 mb-0 text-sm text-dim">Sign in and this is where the news lands.</p>
+        </div>
+      ) : error ? (
+        <LoadError />
+      ) : !loaded ? null : items.length === 0 ? (
+        <div className={`${panel} px-6 py-12 text-center`}>
+          <p className="m-0 text-[15px] font-semibold">No news</p>
+          <p className="mt-2 mb-0 text-sm text-dim">
+            When somebody likes one of your rankings, you&rsquo;ll hear about it here.
+          </p>
+        </div>
+      ) : (
+        <div className={`${panel} px-5 py-2`}>
+          <ul className="m-0 flex list-none flex-col p-0">
+            {items.map((n) => (
+              <li
+                key={n.id}
+                className="flex items-start gap-2.5 border-b border-edge py-3 text-sm last:border-b-0"
+              >
+                <span
+                  className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                    n.read_at === null ? 'bg-clay' : 'bg-transparent'
+                  }`}
+                  aria-label={n.read_at === null ? 'new' : undefined}
+                  role={n.read_at === null ? 'img' : undefined}
+                />
+                {/* break-words throughout: handles run to 24 characters and
+                    foods to 120, either of which can arrive as one token. */}
+                <span className="min-w-0 flex-1 break-words">
+                  <UserLink username={n.actor?.username ?? null} meta={n.actor} />{' '}
+                  <span className="text-dim">liked your</span>{' '}
+                  <span className="font-semibold">{n.rankings?.food ?? 'ranking'}</span>
+                  {n.rankings?.categories && (
+                    <>
+                      <span className="text-dim"> in </span>
+                      <CategoryLink name={n.rankings.categories.name} />
+                    </>
+                  )}
+                </span>
+                <span className="shrink-0 text-xs text-faint tabular-nums">
+                  {timeAgo(n.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 

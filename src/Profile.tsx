@@ -479,7 +479,6 @@ export function ProfilePage({
       ) : (
         <>
           <TopFour picks={top} own={own} onChanged={onChanged} />
-
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
               label={rankingCount === 1 ? 'Ranking' : 'Rankings'}
@@ -496,7 +495,6 @@ export function ProfilePage({
             />
             <Stat label="Loved" value={lovedCount ? `♥ ${lovedCount}` : '—'} tone="text-gold" />
           </div>
-
           {rankings === null ? (
             <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
           ) : list.length === 0 ? (
