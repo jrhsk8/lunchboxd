@@ -386,6 +386,9 @@ export function RankingRow({
   pin?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  // A refused delete used to raise a native alert. The row says it instead, in
+  // the place the failed control sits.
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const own = userId === ranking.user_id;
   const where = categoryName ? ` in ${categoryName}` : '';
 
@@ -457,14 +460,20 @@ export function RankingRow({
                   const { error } = await deleteRanking(ranking.id);
                   if (error) {
                     console.error('lunchboxd: delete failed —', error);
-                    window.alert("That didn't go through. Try again in a moment.");
+                    setDeleteFailed(true);
                     return;
                   }
+                  setDeleteFailed(false);
                   onChanged();
                 }}
               >
                 ✕
               </button>
+              {deleteFailed && (
+                <span className="text-[11px] whitespace-nowrap text-bad">
+                  Didn&rsquo;t go through
+                </span>
+              )}
             </>
           ) : (
             <span className={`shrink-0 ${pin ? 'w-[68px]' : 'w-[46px]'}`} aria-hidden />
@@ -629,6 +638,11 @@ const ownerControl = `${controlBase} text-faint opacity-100 hover:text-ink sm:op
  */
 function TopPin({ ranking, onChanged }: { ranking: Ranking; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  // A refusal here is usually "the four are full", which is an ordinary answer
+  // rather than a failure — so it rides on the control's own tooltip instead of
+  // a native dialog. The site retired its last modal for a route; an alert()
+  // was the one thing left that could stop the page dead.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const pinned = ranking.top_rank !== null;
 
   return (
@@ -642,9 +656,11 @@ function TopPin({ ranking, onChanged }: { ranking: Ranking; onChanged: () => voi
           : `pin ${ranking.food} to your top four`
       }
       title={
-        pinned
-          ? `Number ${ranking.top_rank} in your top four — click to take it out`
-          : 'Pin to your top four'
+        refusal
+          ? refusal
+          : pinned
+            ? `Number ${ranking.top_rank} in your top four — click to take it out`
+            : 'Pin to your top four'
       }
       className={
         pinned
@@ -657,15 +673,14 @@ function TopPin({ ranking, onChanged }: { ranking: Ranking; onChanged: () => voi
         const { error } = await setTopPick(ranking, !pinned);
         setBusy(false);
         if (error) {
-          // Being told the four are full is an ordinary answer, not a failure,
-          // so it's shown rather than logged.
-          window.alert(error);
+          setRefusal(error);
           return;
         }
+        setRefusal(null);
         onChanged();
       }}
     >
-      {pinned ? '◆' : '◇'}
+      {refusal ? '!' : pinned ? '◆' : '◇'}
     </button>
   );
 }

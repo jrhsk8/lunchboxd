@@ -65,6 +65,7 @@ function PinnedRanking({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [unpinFailed, setUnpinFailed] = useState(false);
   const score = Number(ranking.score);
 
   return (
@@ -93,7 +94,7 @@ function PinnedRanking({
           type="button"
           disabled={busy}
           aria-label={`take ${ranking.food} out of your top four`}
-          title="Take it out of your top four"
+          title={unpinFailed ? "That didn't go through" : 'Take it out of your top four'}
           className="absolute top-2 right-2 cursor-pointer rounded border-0 bg-transparent px-1 text-xs text-faint transition-colors hover:text-bad disabled:opacity-40"
           onClick={async () => {
             if (busy) return;
@@ -101,13 +102,15 @@ function PinnedRanking({
             const { error } = await setTopPick(ranking, false);
             setBusy(false);
             if (error) {
-              window.alert(error);
+              console.error('lunchboxd: unpin failed —', error);
+              setUnpinFailed(true);
               return;
             }
+            setUnpinFailed(false);
             onChanged();
           }}
         >
-          ✕
+          {unpinFailed ? '!' : '✕'}
         </button>
       )}
     </li>
@@ -178,14 +181,22 @@ function TagPicker({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function toggle(tag: string) {
     if (busy) return;
     setBusy(true);
+    setError(null);
     // Flair is either/or (DB-enforced): picking one replaces the other.
     const next = current.includes(tag) ? [] : [tag];
-    await setProfileTags(userId, next);
+    const { error: err } = await setProfileTags(userId, next);
     setBusy(false);
+    // A refused write (banned account, expired session) used to be dropped
+    // here, so the chip looked set until the next refetch quietly undid it.
+    if (err) {
+      setError(err);
+      return;
+    }
     onChanged();
   }
 
@@ -210,6 +221,7 @@ function TagPicker({
           </button>
         );
       })}
+      {error && <span className="text-xs text-bad">{error}</span>}
     </div>
   );
 }
