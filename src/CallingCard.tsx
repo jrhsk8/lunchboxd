@@ -27,6 +27,7 @@ import { panel, Tag, type TagKind } from './ui';
  */
 export function CallingCard({
   handle,
+  href,
   badges = [],
   stats,
   slots,
@@ -36,6 +37,11 @@ export function CallingCard({
   className = '',
 }: {
   handle: string;
+  /**
+   * Where the handle points. Omitted on the profile header — that card is
+   * already on the page it would link to.
+   */
+  href?: string;
   badges?: TagKind[];
   stats: CardStats;
   slots: readonly (string | null)[] | null;
@@ -57,7 +63,17 @@ export function CallingCard({
       aria-label={`${handle}'s calling card`}
     >
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{handle}</span>
+        {href ? (
+          <a
+            href={href}
+            title={`${handle}'s profile`}
+            className="min-w-0 flex-1 truncate text-[13px] font-bold hover:text-clay hover:underline"
+          >
+            {handle}
+          </a>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{handle}</span>
+        )}
         {badges.map((t) => (
           <Tag key={t} kind={t} size={9} />
         ))}

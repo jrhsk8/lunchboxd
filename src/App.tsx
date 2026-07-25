@@ -417,6 +417,7 @@ function EatersTab({ version }: { version: number }) {
               <li key={e.user_id} className="min-w-0">
                 <CallingCard
                   handle={e.username}
+                  href={profileHref(e.username)}
                   badges={profileTags({ ...e, tags: e.tags ?? undefined })}
                   stats={cardStatsFrom(e)}
                   slots={[e.card_slot_1, e.card_slot_2, e.card_slot_3]}
