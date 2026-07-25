@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+## How to speak to the user
+
+In chat: describe things simply, and in few words. Strongly avoid multiple paragraphs unless asked to expand. No jargon, no em-dashes, no claude-isms like "footgun", "idempotent", "load-bearing". Don't restate what has already been said. (Written artefacts — comments, commits, docs, UI strings — follow docs/writing/.)
+
+## About
+
 Lunchboxd is a site where you rate food, together — like Letterboxd, but the subject matter is edible and the categories are communal. Anyone invents a category; everyone ranks foods under it out of five stars; every category keeps a global running average.
 
 This file is a router: the doc map, the hard rules, and the commands. Detail lives in the routed docs — read the one whose trigger matches what you're about to do.
