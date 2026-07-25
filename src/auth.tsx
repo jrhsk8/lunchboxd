@@ -72,6 +72,7 @@ export function KeepAccount() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -82,12 +83,18 @@ export function KeepAccount() {
       { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
     );
     setBusy(false);
+    if (error) {
+      // Kept in the open form rather than collapsing it: the address is still
+      // in the field, so the fix is usually one character away.
+      console.error('lunchboxd: add email failed —', error.message);
+      setFailed(true);
+      return;
+    }
+    setFailed(false);
     setStatus(
-      error
-        ? error.message
-        : 'Confirmation sent. Click the link in your email and the account is yours for keeps — then you can pick a handle from your profile.',
+      'Confirmation sent. Click the link in your email and the account is yours for keeps — then you can pick a handle from your profile.',
     );
-    if (!error) setOpen(false);
+    setOpen(false);
   }
 
   if (!open) {
@@ -129,6 +136,7 @@ export function KeepAccount() {
       >
         Save
       </button>
+      {failed && <span className="text-[11px] text-bad">That didn't send. Check the address.</span>}
     </span>
   );
 }
