@@ -34,9 +34,8 @@ import { StarInput, Stars } from './Stars';
 import { HASHTAG_RE, parseHash, timeAgo, type Route } from './text';
 import { profileTags, TAG_STYLES, type ProfileTags, type TagKind } from './tags';
 
-export { hashtagsIn, timeAgo } from './text';
-export { profileTags, SELF_TAGS, type ProfileTags, type TagKind } from './tags';
-export type { Route } from './text';
+export { timeAgo } from './text';
+export { profileTags, SELF_TAGS, type TagKind } from './tags';
 
 export const panel = 'rounded-(--radius-card) border border-edge bg-panel shadow-(--shadow-hard)';
 export const kicker = 'text-[11px] font-semibold tracking-[0.16em] uppercase text-clay';
@@ -58,7 +57,7 @@ export const label =
  * three lines instead, because a touch device never sees that tooltip and one
  * line at 320px is a dozen words.
  */
-export const reviewLine =
+const reviewLine =
   'mt-0.5 line-clamp-3 text-xs text-dim italic sm:block sm:overflow-hidden sm:text-ellipsis sm:whitespace-nowrap';
 
 export function scoreTone(avg: number) {
@@ -144,7 +143,7 @@ export function categoryHref(name: string) {
   return `#/c/${encodeURIComponent(name)}`;
 }
 
-export function hashtagHref(hashtag: string) {
+function hashtagHref(hashtag: string) {
   return `#/t/${encodeURIComponent(hashtag.toLowerCase())}`;
 }
 
@@ -182,7 +181,7 @@ export function ReviewText({ text }: { text: string }) {
  * Whether the text actually overflows depends on the viewport, so it's
  * measured rather than guessed from length.
  */
-export function ReviewQuote({ text, className = '' }: { text: string; className?: string }) {
+function ReviewQuote({ text, className = '' }: { text: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [clamped, setClamped] = useState(false);
   const ref = useRef<HTMLParagraphElement>(null);
@@ -737,7 +736,7 @@ function EditRanking({
  * it", independent of the score). Everyone sees it; only the owner can flip
  * it. Non-owners get a plain glyph (gold when hearted, nothing otherwise).
  */
-export function Heart({
+function Heart({
   ranking,
   userId,
   onChanged,

@@ -48,7 +48,7 @@ export function isCardStatKey(value: unknown): value is CardStatKey {
 export const CARD_ACCENT_KEYS = ['clay', 'teal', 'blue', 'violet', 'gold'] as const;
 export type CardAccentKey = (typeof CARD_ACCENT_KEYS)[number];
 
-export function isCardAccentKey(value: unknown): value is CardAccentKey {
+function isCardAccentKey(value: unknown): value is CardAccentKey {
   return typeof value === 'string' && (CARD_ACCENT_KEYS as readonly string[]).includes(value);
 }
 
