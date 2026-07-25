@@ -30,6 +30,7 @@ import {
   kicker,
   LoadError,
   Loading,
+  PageHeader,
   panel,
   profileHref,
   profileTags,
@@ -440,12 +441,12 @@ export function ProfilePage({
         {/* min-w-0: without it this column sizes to the handle's (or the rename
             row's) max-content and drags the header off a phone screen. */}
         <div className="min-w-0">
-          <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
-            ← Back to the board
-          </a>
-          <p className={`${kicker} mt-4 mb-1.5`}>{own ? 'Your profile' : 'Profile'}</p>
-          <h1 className="m-0 flex flex-wrap items-center gap-2.5 text-[28px] font-bold break-all">
-            {profile.username}
+          <PageHeader
+            kind={own ? 'Your profile' : 'Profile'}
+            title={profile.username}
+            break="all"
+            sub={`Eating since ${since}`}
+          >
             {banned && (
               <span className="inline-flex items-center rounded-md border border-bad/40 bg-bad/10 px-2 py-0.5 align-middle text-[11px] font-bold tracking-wider text-bad uppercase">
                 Banned
@@ -455,8 +456,7 @@ export function ProfilePage({
             {mayEdit && !viewerIsGuest && (
               <RenameControl userId={profile.id} current={profile.username} onRenamed={onRenamed} />
             )}
-          </h1>
-          <p className="mt-1 mb-0 text-sm text-dim">Eating since {since}</p>
+          </PageHeader>
           {/* The nudge sits where the ✎ would be, because this is the moment
               someone wants their own name and the serial number is the reason
               they can't have it. The DB refuses the rename either way. */}

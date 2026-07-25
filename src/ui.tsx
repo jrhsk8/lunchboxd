@@ -289,6 +289,54 @@ export function ProfileLink({
 }
 
 /**
+ * The top of every page that isn't the board: the way back, the kicker naming
+ * what kind of page this is, the title, and an optional line under it.
+ *
+ * Five pages re-typed this — category, hashtag, notifications, terms and
+ * profile — and the spacing had already drifted between them (#83). The title
+ * wraps rather than truncating: a category name runs to 60 characters and a
+ * hashtag has no spaces to break at, and the house rule is that text wraps
+ * (app-shell.md § Mobile).
+ *
+ * `children` is for the profile, whose title line carries chips and a rename
+ * control beside the handle. It is also the one page that breaks mid-word: a
+ * handle is 24 characters with nowhere to break, so `break` says which.
+ */
+export function PageHeader({
+  kind,
+  title,
+  sub,
+  children,
+  break: breakAt = 'words',
+  className = '',
+}: {
+  kind: string;
+  title: ReactNode;
+  sub?: ReactNode;
+  children?: ReactNode;
+  break?: 'words' | 'all';
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
+        ← Back to the board
+      </a>
+      <p className={`${kicker} mt-4 mb-1.5`}>{kind}</p>
+      <h1
+        className={`m-0 flex flex-wrap items-center gap-2.5 text-[28px] font-bold ${
+          breakAt === 'all' ? 'break-all' : 'break-words'
+        }`}
+      >
+        {title}
+        {children}
+      </h1>
+      {sub && <p className="mt-1 mb-0 text-sm text-dim">{sub}</p>}
+    </div>
+  );
+}
+
+/**
  * The empty state: a bold line saying what isn't there, and a lighter one
  * inviting you to fix it — the idiom app-shell.md documents and voice.md rules
  * on.

@@ -52,6 +52,7 @@ import {
   label,
   Loading,
   NotificationBell,
+  PageHeader,
   panel,
   ProfileLink,
   profileHref,
@@ -473,11 +474,11 @@ function NotificationsPage({
 
   return (
     <div>
-      <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
-        ← Back to the board
-      </a>
-      <p className={`${kicker} mt-4 mb-1.5`}>Notifications</p>
-      <h1 className="m-0 mb-5 text-[28px] font-bold">What people did with your rankings</h1>
+      <PageHeader
+        className="mb-5"
+        kind="Notifications"
+        title="What people did with your rankings"
+      />
 
       {!userId ? (
         <EmptyState
@@ -543,13 +544,7 @@ function NotificationsPage({
 function Terms() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div>
-        <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
-          ← Back to the board
-        </a>
-        <p className={`${kicker} mt-4 mb-1.5`}>Terms of service</p>
-        <h1 className="m-0 text-[28px] font-bold">The deal</h1>
-      </div>
+      <PageHeader kind="Terms of service" title="The deal" />
       <div className={`${panel} flex flex-col gap-3 p-6 text-sm leading-relaxed text-dim`}>
         <p className="m-0">
           <span className="font-bold text-ink">We do not collect your data.</span> No analytics, no
@@ -1321,17 +1316,17 @@ function CategoryPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         {/* min-w-0 so a long category name wraps instead of sizing this column
             to its max-content and pushing the header off a phone screen. */}
-        <div className="min-w-0">
-          <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
-            ← Back to the board
-          </a>
-          <p className={`${kicker} mt-4 mb-1.5`}>Category</p>
-          <h1 className="m-0 text-[28px] font-bold break-words">{stat.name}</h1>
-          <p className="mt-1 mb-0 text-sm text-dim">
-            {stat.ranking_count} {plural(stat.ranking_count, 'ranking', 'rankings')} ·{' '}
-            {stat.ranker_count} {plural(stat.ranker_count, 'person', 'people')}
-          </p>
-        </div>
+        <PageHeader
+          className="min-w-0"
+          kind="Category"
+          title={stat.name}
+          sub={
+            <>
+              {stat.ranking_count} {plural(stat.ranking_count, 'ranking', 'rankings')} ·{' '}
+              {stat.ranker_count} {plural(stat.ranker_count, 'person', 'people')}
+            </>
+          }
+        />
         {avg !== null && (
           <span className="flex items-center gap-3">
             <Stars value={avg} />
@@ -1388,20 +1383,13 @@ function HashtagPage({ hashtag, version }: { hashtag: string; version: number })
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <a href="#/" className="text-xs font-semibold text-faint hover:text-clay">
-          ← Back to the board
-        </a>
-        <p className={`${kicker} mt-4 mb-1.5`}>Hashtag</p>
-        {/* A hashtag has no length cap and no spaces: without break-words a long
-            one runs straight off a phone screen. */}
-        <h1 className="m-0 text-[28px] font-bold break-words">#{clean}</h1>
-        <p className="mt-1 mb-0 text-sm text-dim">
-          {rows === null
-            ? 'Loading…'
-            : `${rows.length} ${plural(rows.length, 'review', 'reviews')}`}
-        </p>
-      </div>
+      <PageHeader
+        kind="Hashtag"
+        title={`#${clean}`}
+        sub={
+          rows === null ? 'Loading…' : `${rows.length} ${plural(rows.length, 'review', 'reviews')}`
+        }
+      />
 
       {error ? (
         <LoadError />
