@@ -50,6 +50,7 @@ export type Database = {
           created_at: string;
           id: string;
           is_admin: boolean;
+          is_supporter: boolean;
           tags: string[];
           username: string;
         };
@@ -58,6 +59,7 @@ export type Database = {
           created_at?: string;
           id: string;
           is_admin?: boolean;
+          is_supporter?: boolean;
           tags?: string[];
           username: string;
         };
@@ -66,6 +68,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_admin?: boolean;
+          is_supporter?: boolean;
           tags?: string[];
           username?: string;
         };
@@ -80,6 +83,7 @@ export type Database = {
           id: string;
           review: string | null;
           score: number;
+          top_rank: number | null;
           user_id: string;
         };
         Insert: {
@@ -90,6 +94,7 @@ export type Database = {
           id?: string;
           review?: string | null;
           score: number;
+          top_rank?: number | null;
           user_id: string;
         };
         Update: {
@@ -100,6 +105,7 @@ export type Database = {
           id?: string;
           review?: string | null;
           score?: number;
+          top_rank?: number | null;
           user_id?: string;
         };
         Relationships: [
@@ -138,6 +144,7 @@ export type Database = {
       category_stats: {
         Row: {
           avg_score: number | null;
+          created_by: string | null;
           id: string | null;
           last_ranked_at: string | null;
           name: string | null;
@@ -145,7 +152,22 @@ export type Database = {
           ranking_count: number | null;
           weighted_score: number | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'categories_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profile_stats';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'categories_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       profile_stats: {
         Row: {
@@ -160,6 +182,7 @@ export type Database = {
     };
     Functions: {
       ban_profile: { Args: { target: string }; Returns: undefined };
+      delete_category: { Args: { cat: string }; Returns: undefined };
       merge_categories: {
         Args: { source: string; target: string };
         Returns: undefined;

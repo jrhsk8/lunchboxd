@@ -43,3 +43,60 @@ export const HASHTAG_RE = /(^|[^A-Za-z0-9_])#([A-Za-z0-9_]+)/g;
 export function hashtagsIn(text: string): string[] {
   return [...text.matchAll(HASHTAG_RE)].map((m) => m[2]);
 }
+
+/** The Postgres SQLSTATEs this client can actually meet, by name. */
+export const PG = {
+  /** Unique violation: a duplicate ranking, handle, category name, or top-four slot. */
+  duplicate: '23505',
+  /** Check violation: a handle's charset, a score's half-star step, a top-four slot out of 1–4. */
+  checkViolation: '23514',
+  /** RLS refused the row: signed out, session expired, or a banned account. */
+  rlsDenied: '42501',
+  /** `raise exception` from one of our own functions — those messages are written for people. */
+  raised: 'P0001',
+} as const;
+
+export type WriteError = { code?: string; message: string };
+
+/**
+ * What a rejected write says to the person who made it.
+ *
+ * The rule this exists to enforce: **a Postgres message never reaches a user.**
+ * Every write used to end `: error.message`, which was fine while every failure
+ * anyone had thought of was mapped — and then the one-ranking-per-food index
+ * landed and a user was shown `duplicate key value violates unique constraint
+ * "rankings_one_per_food_idx"`. Mapping that one string fixes that one string;
+ * the next constraint would have done it again. So the fallback is now a plain
+ * sentence, and the raw text goes to the console for whoever is debugging.
+ *
+ * `known` maps a SQLSTATE to the specific sentence for this particular write —
+ * "you've already ranked that here" reads very differently from "that handle is
+ * taken", and both are 23505.
+ */
+export function writeError(error: WriteError, known: Record<string, string> = {}): string {
+  const code = error.code ?? '';
+  if (known[code]) return known[code];
+  if (code === PG.rlsDenied) {
+    return "That didn't go through — you're either signed out or this account can't post any more.";
+  }
+  if (code === PG.raised) return error.message;
+  return "That didn't go through. Try again in a moment.";
+}
+
+/** The four top-four slots, in display order. */
+export const TOP_SLOTS = [1, 2, 3, 4] as const;
+
+/**
+ * The slot a newly pinned ranking takes: the lowest free one, or null when all
+ * four are held.
+ *
+ * Lowest-free rather than "next after the highest" because unpinning leaves a
+ * hole — pin four, unpin the second, and counting from the top would ask for
+ * slot 5, which the check constraint refuses. The DB has the final say either
+ * way (one ranking per slot per person, partial unique index), so a race
+ * between two tabs loses one write rather than double-filling a slot.
+ */
+export function nextTopSlot(taken: readonly (number | null)[]): number | null {
+  const held = new Set(taken);
+  return TOP_SLOTS.find((slot) => !held.has(slot)) ?? null;
+}

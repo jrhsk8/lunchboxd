@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { KeepAccount, SignInCard, useAuth } from './auth';
 import {
+  deleteCategory,
   mergeCategories,
   rankFood,
   renameCategory,
@@ -674,6 +675,7 @@ function CategoryBoard({
                 viewerIsAdmin={viewerIsAdmin}
                 onChanged={onChanged}
                 onMerged={(targetId) => setOpenId(targetId)}
+                onDeleted={() => setOpenId(null)}
               />
             )}
           </article>
@@ -683,19 +685,94 @@ function CategoryBoard({
   );
 }
 
-/** Admin-only category surgery inside the expanded panel: rename, or fold into another. */
-function CategoryAdminTools({
+/**
+ * Who gets tools on a category, and which set.
+ *
+ * Admins get the surgery kit (rename, merge, delete) they already had. The
+ * person who invented a category gets delete alone, and only while nobody else
+ * has ranked in it — a category is a communal namespace, so inventing one must
+ * not carry the power to take everyone else's rankings down with it. Both are
+ * checked again in `delete_category`; this only decides what to draw.
+ */
+function categoryToolsFor(
+  category: CategoryStat,
+  userId: string | null,
+  viewerIsAdmin: boolean,
+): 'admin' | 'inventor' | null {
+  if (viewerIsAdmin) return 'admin';
+  if (userId && category.created_by === userId && category.ranker_count <= 1) return 'inventor';
+  return null;
+}
+
+/** Delete a category and everything ranked in it. Loud, because it's the loudest button here. */
+function DeleteCategoryButton({
+  category,
+  onDeleted,
+}: {
+  category: CategoryStat;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const n = category.ranking_count;
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={busy}
+        className="cursor-pointer rounded-lg border border-bad/50 bg-bad/10 px-2.5 py-1 text-xs font-bold text-bad transition-colors hover:bg-bad/20 disabled:cursor-default disabled:opacity-40"
+        onClick={async () => {
+          if (
+            !window.confirm(
+              n === 0
+                ? `Delete "${category.name}"? Nothing has been ranked in it. It's gone for good.`
+                : `Delete "${category.name}" entirely? All ${n} ${n === 1 ? 'ranking' : 'rankings'} in it ${n === 1 ? 'goes' : 'go'} too, from everyone who logged one, and the averages recompute without them. There is no undo.`,
+            )
+          ) {
+            return;
+          }
+          setBusy(true);
+          setError(null);
+          const result = await deleteCategory(category.id);
+          setBusy(false);
+          if (result.error) {
+            setError(result.error);
+            return;
+          }
+          onDeleted();
+        }}
+      >
+        {busy ? 'Deleting…' : 'Delete'}
+      </button>
+      {error && <span className="text-xs text-bad">{error}</span>}
+    </>
+  );
+}
+
+/**
+ * Category tools inside the expanded panel and on the category page: admin
+ * rename / merge-into / delete, or — for whoever invented an untouched category
+ * — delete on its own.
+ */
+function CategoryTools({
   category,
   stats,
+  userId,
+  viewerIsAdmin,
   onChanged,
   onRenamed,
   onMerged,
+  onDeleted,
 }: {
   category: CategoryStat;
   stats: CategoryStat[];
+  userId: string | null;
+  viewerIsAdmin: boolean;
   onChanged: () => void;
   onRenamed?: (newName: string) => void;
   onMerged: (targetId: string) => void;
+  onDeleted: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(category.name);
@@ -746,6 +823,28 @@ function CategoryAdminTools({
     }
     onMerged(t.id);
     onChanged();
+  }
+
+  const role = categoryToolsFor(category, userId, viewerIsAdmin);
+  if (role === null) return null;
+
+  const deleted = () => {
+    onDeleted();
+    onChanged();
+  };
+
+  if (role === 'inventor') {
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-edge pt-3">
+        <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">
+          You invented this
+        </span>
+        <DeleteCategoryButton category={category} onDeleted={deleted} />
+        <span className="text-xs text-faint">
+          Only until somebody else ranks here — then it belongs to everyone.
+        </span>
+      </div>
+    );
   }
 
   return (
@@ -806,6 +905,7 @@ function CategoryAdminTools({
       <button type="button" className={btnSmall} disabled={busy || !target} onClick={merge}>
         Merge
       </button>
+      <DeleteCategoryButton category={category} onDeleted={deleted} />
       {error && <span className="text-xs text-bad">{error}</span>}
     </div>
   );
@@ -819,6 +919,7 @@ function CategoryDetail({
   viewerIsAdmin,
   onChanged,
   onMerged,
+  onDeleted,
 }: {
   category: CategoryStat;
   stats: CategoryStat[];
@@ -827,6 +928,7 @@ function CategoryDetail({
   viewerIsAdmin: boolean;
   onChanged: () => void;
   onMerged: (targetId: string) => void;
+  onDeleted: () => void;
 }) {
   const { rankings, error } = useCategoryRankings(category.id, version);
 
@@ -863,14 +965,15 @@ function CategoryDetail({
         </a>
       </p>
       <RankingRows rankings={rankings} userId={userId} onChanged={onChanged} />
-      {viewerIsAdmin && (
-        <CategoryAdminTools
-          category={category}
-          stats={stats}
-          onChanged={onChanged}
-          onMerged={onMerged}
-        />
-      )}
+      <CategoryTools
+        category={category}
+        stats={stats}
+        userId={userId}
+        viewerIsAdmin={viewerIsAdmin}
+        onChanged={onChanged}
+        onMerged={onMerged}
+        onDeleted={onDeleted}
+      />
     </div>
   );
 }
@@ -996,11 +1099,13 @@ function CategoryPage({
         </div>
       )}
 
-      {viewerIsAdmin && (
+      {categoryToolsFor(stat, userId, viewerIsAdmin) && (
         <div className={`${panel} px-5 py-1`}>
-          <CategoryAdminTools
+          <CategoryTools
             category={stat}
             stats={stats}
+            userId={userId}
+            viewerIsAdmin={viewerIsAdmin}
             onChanged={onChanged}
             onRenamed={(newName) => {
               window.location.hash = categoryHref(newName).slice(1);
@@ -1008,6 +1113,11 @@ function CategoryPage({
             onMerged={(targetId) => {
               const target = stats.find((s) => s.id === targetId);
               if (target) window.location.hash = categoryHref(target.name).slice(1);
+            }}
+            // The page it's on no longer exists; the board is the only place
+            // left to be.
+            onDeleted={() => {
+              window.location.hash = '#/';
             }}
           />
         </div>

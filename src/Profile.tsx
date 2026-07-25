@@ -1,6 +1,15 @@
 import { useState } from 'react';
 
-import { banProfile, renameProfile, setProfileTags, useProfile } from './data';
+import {
+  banProfile,
+  renameProfile,
+  setProfileTags,
+  setTopPick,
+  useProfile,
+  type ProfileRanking,
+} from './data';
+import { Stars } from './Stars';
+import { TOP_SLOTS } from './text';
 import {
   CategoryLink,
   kicker,
@@ -30,6 +39,117 @@ function Stat({
         {label}
       </p>
     </div>
+  );
+}
+
+/** One pinned ranking, as a card in the top four. */
+function TopCard({
+  ranking,
+  own,
+  onChanged,
+}: {
+  ranking: ProfileRanking;
+  own: boolean;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const score = Number(ranking.score);
+
+  return (
+    <li className={`${panel} relative flex min-h-[96px] flex-col gap-1 px-4 py-3`}>
+      {/* pr-6 keeps the food clear of the unpin control in the corner; a food
+          name runs to 120 characters and has to wrap, not truncate. */}
+      <span className="pr-6 text-[15px] leading-snug font-bold break-words">{ranking.food}</span>
+      {ranking.categories && (
+        <span className="text-xs break-words">
+          <CategoryLink name={ranking.categories.name} />
+        </span>
+      )}
+      <span className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-1.5">
+        <Stars value={score} size={12} />
+        <span className={`text-sm font-bold tabular-nums ${scoreTone(score)}`}>
+          {score.toFixed(1)}
+        </span>
+        {ranking.hearted && (
+          <span className="text-sm text-gold" title="Loved it" aria-label="loved it">
+            ♥
+          </span>
+        )}
+      </span>
+      {own && (
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={`take ${ranking.food} out of your top four`}
+          title="Take it out of your top four"
+          className="absolute top-2 right-2 cursor-pointer rounded border-0 bg-transparent px-1 text-xs text-faint transition-colors hover:text-bad disabled:opacity-40"
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true);
+            const { error } = await setTopPick(ranking, false);
+            setBusy(false);
+            if (error) {
+              window.alert(error);
+              return;
+            }
+            onChanged();
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </li>
+  );
+}
+
+/**
+ * The Letterboxd top four: the rankings someone has pinned to the top of their
+ * profile, in slot order.
+ *
+ * Unpinning leaves a hole in the slot numbering, so the cards render in the
+ * order they're held rather than one card per slot — otherwise a gap at slot 2
+ * would show a stranger an empty box in the middle of someone's four. The empty
+ * spots only appear on your own profile, where they're the instruction.
+ */
+function TopFour({
+  picks,
+  own,
+  onChanged,
+}: {
+  picks: ProfileRanking[];
+  own: boolean;
+  onChanged: () => void;
+}) {
+  if (!own && picks.length === 0) return null;
+  const empties = TOP_SLOTS.length - picks.length;
+
+  return (
+    <section className="flex flex-col gap-2" aria-label="top four">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className={`${kicker} m-0`}>Top four</p>
+        {own && (
+          <p className="m-0 text-xs text-faint">
+            {picks.length === 0
+              ? 'Pin up to four of your rankings with the ◇ below.'
+              : `${empties} ${empties === 1 ? 'spot' : 'spots'} left.`}
+          </p>
+        )}
+      </div>
+      <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-4">
+        {picks.map((r) => (
+          <TopCard key={r.id} ranking={r} own={own} onChanged={onChanged} />
+        ))}
+        {own &&
+          Array.from({ length: empties }, (_, i) => (
+            <li
+              key={`empty-${i}`}
+              className="flex min-h-[96px] items-center justify-center rounded-(--radius-card) border border-dashed border-edge px-4 py-3 text-center text-xs text-faint"
+            >
+              Empty spot
+            </li>
+          ))}
+      </ul>
+    </section>
   );
 }
 
@@ -230,7 +350,7 @@ export function ProfilePage({
   onChanged: () => void;
   onRenamed: () => void;
 }) {
-  const { profile, rankings, stats, error } = useProfile(username, version);
+  const { profile, rankings, stats, top, error } = useProfile(username, version);
 
   if (error) return <LoadError />;
 
@@ -309,6 +429,8 @@ export function ProfilePage({
         </div>
       ) : (
         <>
+          <TopFour picks={top} own={own} onChanged={onChanged} />
+
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
               label={rankingCount === 1 ? 'Ranking' : 'Rankings'}
@@ -345,6 +467,7 @@ export function ProfilePage({
                     userId={userId}
                     onChanged={onChanged}
                     controls="owner"
+                    pin={own}
                     categoryName={r.categories?.name}
                     className="group flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
                     headline={

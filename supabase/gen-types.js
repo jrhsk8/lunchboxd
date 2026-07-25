@@ -9,7 +9,7 @@
 //
 // Uses the same PAT as apply.js, passed to the CLI by env rather than printed.
 
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,15 +19,16 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, '..', 'src', 'database.types.ts');
 const REF = 'kxbteesmfozqzoxzktzv';
 
-const types = execFileSync(
-  process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['supabase', 'gen', 'types', 'typescript', '--project-id', REF, '--schema', 'lunchboxd'],
-  {
-    encoding: 'utf8',
-    env: { ...process.env, SUPABASE_ACCESS_TOKEN: readToken() },
-    maxBuffer: 32e6,
-  },
-);
+// Through a shell, not execFileSync: since Node 20.12 the child_process family
+// refuses to spawn a .cmd/.bat directly (CVE-2024-27980), so the `npx.cmd` this
+// used to invoke came back as EINVAL on this box's Node 24. Every part of the
+// command is a literal here — nothing interpolated comes from outside this
+// file — so there is nothing for a shell to mis-split.
+const types = execSync(`npx supabase gen types typescript --project-id ${REF} --schema lunchboxd`, {
+  encoding: 'utf8',
+  env: { ...process.env, SUPABASE_ACCESS_TOKEN: readToken() },
+  maxBuffer: 32e6,
+});
 
 fs.writeFileSync(OUT, types);
 console.log(`wrote src/database.types.ts (${types.length} bytes)`);

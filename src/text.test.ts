@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 // Imported from text.ts, not ui.tsx: ui.tsx reaches the Supabase client through
 // data.ts, which builds a realtime client at module load and needs a WebSocket.
-import { hashtagsIn, timeAgo } from './text';
+import { hashtagsIn, nextTopSlot, PG, timeAgo, writeError } from './text';
 
 /*
  * The pure functions worth pinning: each has boundary rules subtle enough to
@@ -49,6 +49,81 @@ describe('hashtag matching', () => {
   it('ignores a bare hash', () => {
     expect(hashtagsIn('# ')).toEqual([]);
     expect(hashtagsIn('#')).toEqual([]);
+  });
+});
+
+describe('writeError', () => {
+  /*
+   * The exact payload the hosted backend returned for a second ranking of the
+   * same food, captured from a real anonymous session against production on
+   * 2026-07-25. A user was shown this `message` verbatim, which is why this
+   * function exists; nothing may ever put a Postgres string in front of a
+   * person again. That particular index has since been dropped (repeat logs are
+   * allowed now) — the payload stays as the fixture because it is a real one.
+   */
+  const duplicateRanking = {
+    code: '23505',
+    details: null,
+    hint: null,
+    message: 'duplicate key value violates unique constraint "rankings_one_per_food_idx"',
+  };
+
+  it('uses the sentence this particular write supplies', () => {
+    expect(
+      writeError(duplicateRanking, { [PG.duplicate]: "You've already ranked that here." }),
+    ).toBe("You've already ranked that here.");
+  });
+
+  it('never returns the Postgres text, even for an unmapped code', () => {
+    for (const error of [
+      duplicateRanking,
+      { code: '23514', message: 'new row violates check constraint "rankings_top_rank_range"' },
+      { code: '23503', message: 'insert or update violates foreign key constraint' },
+      { code: 'PGRST204', message: "Could not find the 'top_rank' column" },
+      { code: '', message: 'TypeError: Failed to fetch' },
+      { message: 'no code at all' },
+    ]) {
+      expect(writeError(error)).not.toContain('constraint');
+      expect(writeError(error)).not.toBe(error.message);
+    }
+  });
+
+  it('says what a refused row usually means', () => {
+    expect(writeError({ code: PG.rlsDenied, message: 'new row violates row-level security' })).toBe(
+      "That didn't go through — you're either signed out or this account can't post any more.",
+    );
+  });
+
+  it('passes our own raised exceptions through, since those are written for people', () => {
+    // delete_category and friends raise sentences, not diagnostics.
+    expect(
+      writeError({
+        code: PG.raised,
+        message: 'Only the person who invented this category can delete it.',
+      }),
+    ).toBe('Only the person who invented this category can delete it.');
+  });
+});
+
+describe('nextTopSlot', () => {
+  it('starts at one', () => {
+    expect(nextTopSlot([])).toBe(1);
+  });
+
+  it('takes the lowest free slot, not the one after the highest', () => {
+    // The reason this isn't max+1: pin four, unpin the second, and counting
+    // from the top asks for slot 5, which the check constraint refuses.
+    expect(nextTopSlot([1, 3, 4])).toBe(2);
+    expect(nextTopSlot([2, 3])).toBe(1);
+  });
+
+  it('runs out at four', () => {
+    expect(nextTopSlot([1, 2, 3, 4])).toBe(null);
+    expect(nextTopSlot([4, 2, 1, 3])).toBe(null);
+  });
+
+  it('ignores nulls, which is what an unpinned ranking carries', () => {
+    expect(nextTopSlot([null, 1, null])).toBe(2);
   });
 });
 

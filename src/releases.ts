@@ -20,6 +20,16 @@ export type Release = {
 
 export const releases: Release[] = [
   {
+    version: '0.6.0',
+    date: '2026-07-25',
+    notes: [
+      'Your profile has a top four. Pin up to four of your rankings with the ◇ next to them and they sit at the top of your profile for everyone to see, Letterboxd-style. Click the ✕ on a card to take one out.',
+      'A category can be deleted outright now. Admins can delete any of them; if you invented one and nobody else has ranked in it yet, you can delete your own. Everything ranked in it goes too, so it asks first.',
+      'Some handles now wear a Supporter badge. It goes to the people who have chipped in to keep the site running, and it sits next to whatever flair they already had.',
+      'You can log the same food more than once. Yesterday the site allowed one ranking per food per category and refused the rest, which is no good if you have four of the same thing in a day — so log each one, up to ten a day. Two in the same minute at the same score still reads as a slip of the thumb and is turned away.',
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-07-25',
     notes: [

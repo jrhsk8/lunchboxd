@@ -54,8 +54,11 @@
 
   /* Profile-tag hues (one hue drives a whole chip, maxout-style). Admin red,
      Peloton blue (owner-ruled 2026-07-23); Zwift's murky chartreuse is ugly
-     on purpose (owner-ruled: "make the zwift one an ugly color"). */
+     on purpose (owner-ruled: "make the zwift one an ugly color"). Supporter is
+     teal because the obvious gold is already the heart's colour, and a warm
+     chip beside a name would read as a love mark. */
   --color-admin: #e25151;
+  --color-supporter: #46c0b4;
   --color-peloton: #5b9cf6;
   --color-zwift: #a8a416;
   --color-runner: #a882e6;

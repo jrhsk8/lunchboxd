@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { deleteRanking, setHearted, updateRanking, type Ranking } from './data';
+import { deleteRanking, setHearted, setTopPick, updateRanking, type Ranking } from './data';
 import { StarInput, Stars } from './Stars';
 import { HASHTAG_RE, timeAgo } from './text';
 
@@ -169,15 +169,18 @@ export function CategoryLink({ name, className = '' }: { name: string; className
 
 /**
  * Username tags, maxout-style: one hue drives text, dot, border, and fill of
- * a small chip. `admin` is granted (never self-picked); the rest are
- * self-service flair from the fixed roster in SELF_TAGS.
+ * a small chip. `admin` and `supporter` are granted in SQL and live in their
+ * own columns; the rest are self-service flair from the fixed roster in
+ * SELF_TAGS. Someone can wear both kinds at once — the granted ones don't
+ * spend the single flair slot.
  */
-export type TagKind = 'admin' | 'peloton' | 'zwift' | 'runner';
+export type TagKind = 'admin' | 'supporter' | 'peloton' | 'zwift' | 'runner';
 
 export const SELF_TAGS: readonly TagKind[] = ['peloton', 'zwift', 'runner'];
 
 const TAG_STYLES: Record<TagKind, { label: string; tone: string }> = {
   admin: { label: 'Admin', tone: 'text-admin' },
+  supporter: { label: 'Supporter', tone: 'text-supporter' },
   peloton: { label: 'Peloton', tone: 'text-peloton' },
   zwift: { label: 'Zwift', tone: 'text-zwift' },
   runner: { label: 'Runner', tone: 'text-runner' },
@@ -197,11 +200,22 @@ export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
 }
 
 /** The tags a profile wears, in display order: granted first, then flair. */
-export function profileTags(p: { is_admin?: boolean; tags?: string[] } | null): TagKind[] {
+export function profileTags(p: ProfileBadges | null): TagKind[] {
   if (!p) return [];
-  const flair = (p.tags ?? []).filter((t): t is TagKind => t in TAG_STYLES);
-  return p.is_admin ? ['admin', ...flair] : flair;
+  // Narrowed to SELF_TAGS rather than to TAG_STYLES: `tags` is a user-writable
+  // column, so matching it against every known chip would be one dropped check
+  // constraint away from letting somebody render their own Supporter badge.
+  const flair = (p.tags ?? []).filter((t): t is TagKind =>
+    (SELF_TAGS as readonly string[]).includes(t),
+  );
+  const granted: TagKind[] = [];
+  if (p.is_admin) granted.push('admin');
+  if (p.is_supporter) granted.push('supporter');
+  return [...granted, ...flair];
 }
+
+/** The fields of a profile that decide which chips sit after its handle. */
+type ProfileBadges = { is_admin?: boolean; is_supporter?: boolean; tags?: string[] };
 
 export function UserLink({
   username,
@@ -210,7 +224,7 @@ export function UserLink({
 }: {
   username: string | null;
   className?: string;
-  meta?: { is_admin?: boolean; tags?: string[] } | null;
+  meta?: ProfileBadges | null;
 }) {
   if (!username) return <span className={className}>someone</span>;
   return (
@@ -272,6 +286,11 @@ export function LoadError({ className = '' }: { className?: string }) {
  * `controls` is 'none' for the activity feed, which doesn't reserve the column
  * at all; 'owner' elsewhere, where the column is held open for alignment even
  * on rows you don't own.
+ *
+ * `pin` adds the top-four control. It's off everywhere but your own profile:
+ * the top four is a thing you curate about yourself, in the one place it's
+ * displayed, and a fourth small control on every row of the board and the feed
+ * is a row that doesn't fit a phone.
  */
 export function RankingRow({
   ranking,
@@ -281,6 +300,7 @@ export function RankingRow({
   className,
   controls = 'none',
   categoryName,
+  pin = false,
 }: {
   ranking: Ranking;
   userId: string | null;
@@ -289,6 +309,7 @@ export function RankingRow({
   className: string;
   controls?: 'none' | 'owner';
   categoryName?: string;
+  pin?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const own = userId === ranking.user_id;
@@ -327,6 +348,7 @@ export function RankingRow({
         {controls === 'owner' &&
           (own ? (
             <>
+              {pin && <TopPin ranking={ranking} onChanged={onChanged} />}
               <button
                 type="button"
                 className={ownerControl}
@@ -363,15 +385,69 @@ export function RankingRow({
               </button>
             </>
           ) : (
-            <span className="w-[46px] shrink-0" aria-hidden />
+            <span className={`shrink-0 ${pin ? 'w-[68px]' : 'w-[46px]'}`} aria-hidden />
           ))}
       </span>
     </li>
   );
 }
 
-const ownerControl =
-  'w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm text-faint opacity-100 transition-opacity hover:text-ink sm:opacity-0 sm:group-hover:opacity-100';
+const controlBase =
+  'w-[22px] shrink-0 cursor-pointer rounded border-0 bg-transparent px-0 text-center text-sm transition-opacity';
+
+const ownerControl = `${controlBase} text-faint opacity-100 hover:text-ink sm:opacity-0 sm:group-hover:opacity-100`;
+
+/**
+ * The top-four pin, on your own rankings: a filled diamond in the slot it
+ * holds, a hollow one otherwise.
+ *
+ * A pinned row keeps its mark visible rather than borrowing `ownerControl`'s
+ * hover-reveal — the diamond is state, not just a control, and a mark that
+ * only appears on hover tells you nothing on a touch screen and nothing at a
+ * glance anywhere else.
+ */
+function TopPin({ ranking, onChanged }: { ranking: Ranking; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const pinned = ranking.top_rank !== null;
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      aria-pressed={pinned}
+      aria-label={
+        pinned
+          ? `take ${ranking.food} out of your top four`
+          : `pin ${ranking.food} to your top four`
+      }
+      title={
+        pinned
+          ? `Number ${ranking.top_rank} in your top four — click to take it out`
+          : 'Pin to your top four'
+      }
+      className={
+        pinned
+          ? `${controlBase} text-clay hover:text-clay-hover`
+          : `${ownerControl} hover:text-clay`
+      }
+      onClick={async () => {
+        if (busy) return;
+        setBusy(true);
+        const { error } = await setTopPick(ranking, !pinned);
+        setBusy(false);
+        if (error) {
+          // Being told the four are full is an ordinary answer, not a failure,
+          // so it's shown rather than logged.
+          window.alert(error);
+          return;
+        }
+        onChanged();
+      }}
+    >
+      {pinned ? '◆' : '◇'}
+    </button>
+  );
+}
 
 /**
  * Inline editor for your own ranking. Editing used to mean delete-and-re-log,

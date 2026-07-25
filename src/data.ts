@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from './supabase';
+import { nextTopSlot, PG, writeError, type WriteError } from './text';
 
 export type CategoryStat = {
   id: string;
@@ -10,9 +11,16 @@ export type CategoryStat = {
   avg_score: number | null;
   last_ranked_at: string | null;
   weighted_score: number | null;
+  /** Who invented it. Null once that account is deleted; nobody inherits it. */
+  created_by: string | null;
 };
 
-export type ProfileMeta = { username: string; is_admin?: boolean; tags?: string[] };
+export type ProfileMeta = {
+  username: string;
+  is_admin?: boolean;
+  is_supporter?: boolean;
+  tags?: string[];
+};
 
 export type Ranking = {
   id: string;
@@ -23,7 +31,13 @@ export type Ranking = {
   profiles: ProfileMeta | null;
   hearted: boolean;
   review: string | null;
+  /** 1–4 when this ranking sits in its author's top four, null otherwise. */
+  top_rank: number | null;
 };
+
+/** The columns every ranking list reads. One string so no list drifts from the rest. */
+const RANKING_FIELDS =
+  'id, food, score, created_at, user_id, hearted, review, top_rank, profiles(username, is_admin, is_supporter, tags)';
 
 export type Activity = Ranking & { categories: { name: string } | null };
 
@@ -32,6 +46,7 @@ export type ProfileInfo = {
   username: string;
   created_at: string;
   is_admin: boolean;
+  is_supporter: boolean;
   banned_at: string | null;
   tags: string[];
 };
@@ -68,15 +83,16 @@ function fail(where: string, error: { message: string } | null): string | null {
 }
 
 /**
- * One person's public page: their profile row, their totals, and their ranking
- * history. `profile` is undefined while loading, null when no such handle
- * exists. `error` is set when the lookup itself failed, which is a different
- * thing from the handle not existing.
+ * One person's public page: their profile row, their totals, their top four and
+ * their ranking history. `profile` is undefined while loading, null when no
+ * such handle exists. `error` is set when the lookup itself failed, which is a
+ * different thing from the handle not existing.
  */
 export function useProfile(username: string, version: number) {
   const [profile, setProfile] = useState<ProfileInfo | null | undefined>(undefined);
   const [rankings, setRankings] = useState<ProfileRanking[] | null>(null);
   const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [top, setTop] = useState<ProfileRanking[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Reset to loading only on a handle change; version bumps (realtime, tab
@@ -85,6 +101,7 @@ export function useProfile(username: string, version: number) {
     setProfile(undefined);
     setRankings(null);
     setStats(null);
+    setTop([]);
     setError(null);
   }, [username]);
 
@@ -97,7 +114,7 @@ export function useProfile(username: string, version: number) {
       // finds `jack`.
       const { data: prof, error: profErr } = await client
         .from('profiles')
-        .select('id, username, created_at, is_admin, banned_at, tags')
+        .select('id, username, created_at, is_admin, is_supporter, banned_at, tags')
         .eq('username', username)
         .maybeSingle();
       if (!alive) return;
@@ -109,12 +126,10 @@ export function useProfile(username: string, version: number) {
       setProfile(prof ?? null);
       if (!prof) return;
 
-      const [listRes, statRes] = await Promise.all([
+      const [listRes, statRes, topRes] = await Promise.all([
         client
           .from('rankings')
-          .select(
-            'id, food, score, created_at, user_id, hearted, review, category_id, profiles(username, is_admin, tags), categories(name)',
-          )
+          .select(`${RANKING_FIELDS}, category_id, categories(name)`)
           .eq('user_id', prof.id)
           .order('created_at', { ascending: false })
           .limit(500),
@@ -123,22 +138,32 @@ export function useProfile(username: string, version: number) {
           .select('ranking_count, category_count, hearted_count, avg_score')
           .eq('user_id', prof.id)
           .maybeSingle(),
+        // Its own query rather than a filter over the list above: the list is
+        // capped at 500 and ordered by recency, so a top four picked from a
+        // heavy eater's older rankings would simply not be in it.
+        client
+          .from('rankings')
+          .select(`${RANKING_FIELDS}, category_id, categories(name)`)
+          .eq('user_id', prof.id)
+          .not('top_rank', 'is', null)
+          .order('top_rank'),
       ]);
       if (!alive) return;
-      const err = fail('profile rankings', listRes.error ?? statRes.error);
+      const err = fail('profile rankings', listRes.error ?? statRes.error ?? topRes.error);
       if (err) {
         setError(err);
         return;
       }
       setRankings(listRes.data ?? []);
       setStats(statRes.data as ProfileStats | null);
+      setTop(topRes.data ?? []);
     })();
     return () => {
       alive = false;
     };
   }, [username, version]);
 
-  return { profile, rankings, stats, error };
+  return { profile, rankings, stats, top, error };
 }
 
 /**
@@ -162,9 +187,7 @@ export function useBoard() {
       supabase.from('category_stats').select('*'),
       supabase
         .from('rankings')
-        .select(
-          'id, food, score, created_at, user_id, hearted, review, profiles(username, is_admin, tags), categories(name)',
-        )
+        .select(`${RANKING_FIELDS}, categories(name)`)
         .order('created_at', { ascending: false })
         .limit(30),
     ]).then(([statsRes, actRes]) => {
@@ -310,9 +333,7 @@ export function useTagReviews(tag: string, version: number) {
     (async () => {
       const { data, error: err } = await client
         .from('rankings')
-        .select(
-          'id, food, score, created_at, user_id, hearted, review, profiles(username, is_admin, tags), categories(name)',
-        )
+        .select(`${RANKING_FIELDS}, categories(name)`)
         .ilike('review', `%#${clean}%`)
         .order('created_at', { ascending: false })
         .limit(200);
@@ -346,9 +367,7 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
     let alive = true;
     supabase
       .from('rankings')
-      .select(
-        'id, food, score, created_at, user_id, hearted, review, profiles(username, is_admin, tags)',
-      )
+      .select(RANKING_FIELDS)
       .eq('category_id', categoryId)
       .order('created_at', { ascending: false })
       .limit(200)
@@ -393,8 +412,17 @@ export function useCategoryNames(version: number) {
   return names;
 }
 
-/** A duplicate ranking, blocked by rankings_one_per_food_idx. */
-const DUPLICATE = '23505';
+/**
+ * A rejected write, said out loud.
+ *
+ * Logs the raw Postgres text (the useful thing when debugging) and returns the
+ * sentence a person sees (never that text — see `writeError`). Every write in
+ * this file ends here; none of them return `error.message` any more.
+ */
+function refused(where: string, error: WriteError, known: Record<string, string> = {}): string {
+  console.error(`lunchboxd: ${where} refused —`, error.code ?? '?', error.message);
+  return writeError(error, known);
+}
 
 /** Find-or-create the category by name, then log the ranking under it. */
 export async function rankFood(opts: {
@@ -432,7 +460,7 @@ export async function rankFood(opts: {
           .select('id')
           .eq('name', name)
           .maybeSingle();
-        if (!raced) return { error: error.message };
+        if (!raced) return { error: refused('inventing a category', error) };
         categoryId = raced.id;
       } else {
         categoryId = created.id;
@@ -450,12 +478,10 @@ export async function rankFood(opts: {
     review: opts.review?.trim() || null,
   });
   if (!error) return {};
-  return {
-    error:
-      error.code === DUPLICATE
-        ? `You've already ranked ${opts.food.trim()} here — edit that ranking instead.`
-        : error.message,
-  };
+  // Logging the same food twice is allowed (20260725013000). What's left is the
+  // stutter guard and the ten-a-day cap, and both are raised by the trigger as
+  // sentences, so they pass straight through `refused` to the rank form.
+  return { error: refused('logging a ranking', error) };
 }
 
 /**
@@ -475,13 +501,9 @@ export async function updateRanking(
     ...(patch.review !== undefined ? { review: patch.review?.trim() || null } : {}),
   };
   const { error } = await supabase.from('rankings').update(next).eq('id', id);
-  if (!error) return {};
-  return {
-    error:
-      error.code === DUPLICATE
-        ? "You've already ranked that food in this category."
-        : error.message,
-  };
+  // No duplicate case to name any more: editing a food into one you've already
+  // ranked is allowed, same as logging it twice.
+  return error ? { error: refused('editing a ranking', error) } : {};
 }
 
 /** Admin-only (enforced server-side): rename a category in place. */
@@ -491,11 +513,66 @@ export async function renameCategory(id: string, name: string): Promise<{ error?
   const { error } = await supabase.rpc('rename_category', { cat: id, new_name: next });
   if (!error) return {};
   return {
-    error:
-      error.code === DUPLICATE
-        ? `"${next}" already exists — merge into it instead.`
-        : error.message,
+    error: refused('renaming a category', error, {
+      [PG.duplicate]: `"${next}" already exists — merge into it instead.`,
+    }),
   };
+}
+
+/**
+ * Pin one of your own rankings to your top four, or unpin it.
+ *
+ * The free slot is worked out here rather than passed in: every surface that
+ * offers the pin knows about one ranking, not about the other three, so the
+ * current set is read first. The partial unique index is what actually holds
+ * the rule — two tabs pinning at the same moment race, and the loser gets the
+ * duplicate below rather than a second ranking in slot 2.
+ */
+export async function setTopPick(
+  ranking: { id: string; user_id: string },
+  pinned: boolean,
+): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  if (!pinned) {
+    const { error } = await supabase
+      .from('rankings')
+      .update({ top_rank: null })
+      .eq('id', ranking.id);
+    return error ? { error: refused('unpinning a ranking', error) } : {};
+  }
+
+  const { data, error: readErr } = await supabase
+    .from('rankings')
+    .select('top_rank')
+    .eq('user_id', ranking.user_id)
+    .not('top_rank', 'is', null);
+  if (readErr) return { error: FETCH_FAILED };
+
+  const slot = nextTopSlot((data ?? []).map((r) => r.top_rank));
+  if (slot === null) {
+    return { error: 'Your top four is full — unpin one of them first.' };
+  }
+
+  const { error } = await supabase.from('rankings').update({ top_rank: slot }).eq('id', ranking.id);
+  if (!error) return {};
+  return {
+    error: refused('pinning a ranking', error, {
+      [PG.duplicate]: 'Something else took that spot a moment ago. Try again.',
+    }),
+  };
+}
+
+/**
+ * Delete a category and, by cascade, every ranking in it. Permission is decided
+ * server-side: admins always, the person who invented it only while nobody else
+ * has ranked there. There is no undo.
+ */
+export async function deleteCategory(id: string): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'Not connected' };
+  const { error } = await supabase.rpc('delete_category', { cat: id });
+  // Its refusals are raised as P0001 with sentences already written for people,
+  // so they pass through writeError untouched.
+  return error ? { error: refused('deleting a category', error) } : {};
 }
 
 /**
@@ -505,7 +582,10 @@ export async function renameCategory(id: string, name: string): Promise<{ error?
 export async function mergeCategories(source: string, target: string): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
   const { error } = await supabase.rpc('merge_categories', { source, target });
-  return error ? { error: error.message } : {};
+  // This used to be able to collide with the one-per-food index when somebody
+  // had ranked the same food in both categories. With that index gone the
+  // rankings simply move.
+  return error ? { error: refused('merging categories', error) } : {};
 }
 
 /**
@@ -516,13 +596,13 @@ export async function mergeCategories(source: string, target: string): Promise<{
 export async function setHearted(rankingId: string, hearted: boolean): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
   const { error } = await supabase.from('rankings').update({ hearted }).eq('id', rankingId);
-  return error ? { error: error.message } : {};
+  return error ? { error: refused('hearting a ranking', error) } : {};
 }
 
 export async function deleteRanking(id: string): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
   const { error } = await supabase.from('rankings').delete().eq('id', id);
-  return error ? { error: error.message } : {};
+  return error ? { error: refused('deleting a ranking', error) } : {};
 }
 
 /**
@@ -536,29 +616,22 @@ export async function renameProfile(userId: string, username: string): Promise<{
   const name = username.trim();
   const { error } = await supabase.from('profiles').update({ username: name }).eq('id', userId);
   if (!error) return {};
-  return { error: handleError(name, error) };
-}
-
-/**
- * The three ways a handle gets refused, in the register the rest of the form
- * uses. The charset and reserved-name rules are check constraints, so they
- * arrive as one undifferentiated 23514 — the message covers both.
- */
-function handleError(name: string, error: { code?: string; message: string }): string {
-  if (error.code === DUPLICATE) {
-    return `"${name}" is already claimed — even signed-out guests keep their handles.`;
-  }
-  if (error.code === '23514') {
-    return 'Handles run 2 to 24 characters, using letters, numbers, hyphens and underscores. A few names are reserved.';
-  }
-  return error.message;
+  // The charset and reserved-name rules are both check constraints, so they
+  // arrive as one undifferentiated 23514 and the message has to cover both.
+  return {
+    error: refused('renaming a handle', error, {
+      [PG.duplicate]: `"${name}" is already claimed — even signed-out guests keep their handles.`,
+      [PG.checkViolation]:
+        'Handles run 2 to 24 characters, using letters, numbers, hyphens and underscores. A few names are reserved.',
+    }),
+  };
 }
 
 /** Replace your own flair tags (server enforces the allowed roster). */
 export async function setProfileTags(userId: string, tags: string[]): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
   const { error } = await supabase.from('profiles').update({ tags }).eq('id', userId);
-  return error ? { error: error.message } : {};
+  return error ? { error: refused('setting flair tags', error) } : {};
 }
 
 /**
@@ -569,5 +642,5 @@ export async function setProfileTags(userId: string, tags: string[]): Promise<{ 
 export async function banProfile(targetId: string): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Not connected' };
   const { error } = await supabase.rpc('ban_profile', { target: targetId });
-  return error ? { error: error.message } : {};
+  return error ? { error: refused('banning a profile', error) } : {};
 }

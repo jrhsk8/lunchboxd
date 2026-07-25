@@ -2,6 +2,36 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-25 — The Supporter badge is a column, not a tag
+
+Owner-asked: "add a Supporter tag and give it to people that have donated to me."
+
+**It is `profiles.is_supporter`, not a fourth entry in the `tags` roster.** The roster looked like the obvious home — it is the badge mechanism, `Tag` already renders it, `profileTags` already orders it. But `tags` is inside the column-scoped update grant (`grant update (username, tags)`), which is what makes flair self-service; adding `supporter` there would have let all 96 accounts award themselves one from the browser console. Granted badges live in their own columns for the same reason `is_admin` does, and the column is free of `profiles_tags_single`, so a supporter keeps the Peloton/Zwift/Runner tag they were already wearing. `profileTags` also tightened on the way past: it filters the `tags` array against `SELF_TAGS` rather than against every chip in `TAG_STYLES`, so the client cannot render a granted badge out of user-writable data even if the check constraint were dropped.
+
+Teal (`--color-supporter`), because the conventional gold is already the heart's hue and a warm chip beside a handle reads as a love mark. Granted by hand in SQL with no UI and no RPC — the same deliberate absence as `is_admin` — so awarding the next one is one `update` statement. First five: scytop, Exa, dougmcfawn, Chef, UgoffIsHungry.
+
+### 2026-07-25 — You can log the same food again, ten a day; the one-per-food index is gone
+
+Reverses the one-row-per-person-per-food-per-category rule from earlier the same day. It came in as a user bug report — someone had several Zyns over an evening, and the site refused every one after the first _and_ showed them `duplicate key value violates unique constraint "rankings_one_per_food_idx"` while doing it. Owner-ruled: **"they wanted to log multiple zyns in one day, they should be able to."**
+
+The index was created to stop one account logging "Pizza" fifty times at 5.0 to move the board — but the other half of that same batch had already closed that hole. `category_stats.avg_score` averages each person's scores first and then averages those, so a category counts a person **once** however many rankings they file: ten identical 5.0s move it exactly as far as one. The index was, by the time it landed, guarding a door the view had locked, and the cost was falling entirely on people logging their actual day.
+
+Kept, as a `before insert` trigger, is the part the index was still genuinely buying — protection from mashing rather than from stuffing. **The stutter**: identical food and score, same person and category, inside a minute (four such groups, six rows, were real accidental double-submits in the live data). **The cap**: ten of the same food per person per category per rolling 24 hours — owner-ruled number, rolling rather than calendar because the server keeps UTC and the people using the site do not. Both raise P0001 carrying the sentence the user reads.
+
+Consequence to know before reversing this back: **the unique index cannot simply be recreated** once duplicates exist, and from now on they will.
+
+**The raw Postgres text was its own bug, and the class of it is fixed.** Every write in data.ts ended `: error.message`, which was fine only while every failure anyone had thought of was mapped — then a new constraint landed and a user was shown SQL. `writeError` (text.ts, tested) now stands between every write and the person: known SQLSTATEs get a written sentence, our own P0001 raises pass through, and anything else gets a plain "That didn't go through" while the raw text goes to the console. Timeline, since it explains the report: the index and the v0.5.0 deploy landed within minutes of each other, so tabs opened before that were running v0.4.0 JavaScript — which had no mapping — against the new index. Reloading fixed it for them. **A constraint-tightening migration reaches every already-open tab instantly, while the code that explains it does not** — deploy the frontend first, or expect exactly this.
+
+### 2026-07-25 — The top four, and who may delete a category
+
+Owner-asked: "add a top 4 like letterboxd. allow deleting of a category entirely."
+
+**The top four is a slot on the ranking, not a favourites table.** `rankings.top_rank` is 1–4 or null, bounded by a check and made a _four_ by a partial unique index on `(user_id, top_rank)`. Same reasoning as `hearted` (2026-07-23): what gets favourited **is** a ranking — food is not a first-class unit here (#34) — and the existing cascade on a deleted ranking takes its pin with it. Pinning takes the lowest free slot rather than one past the highest, because unpinning leaves a hole and max+1 would ask for slot 5. **No reordering UI**: the cards render in slot order and that is the whole interaction, pin and unpin. The pin control is on your own profile only, not on the board, the feed or the category page — a fourth small control on every row is a row that doesn't fit a phone, and the four are curated in the one place they're displayed.
+
+**Deleting a category: admins always, the inventor only while nobody else has ranked there.** Who may delete wasn't specified in the ask, and the two readings differ a lot, so: the admin half is unambiguous (it joins rename and merge in the same tools, same SECURITY DEFINER pattern, no delete grant on `categories`). The inventor's carve-out is the "I typo'd a category into existence" case and is deliberately narrow — a category is a communal namespace, so once somebody else has ranked in it, deleting it destroys _their_ rankings, and having invented it first must not confer that. **Open for a ruling**: whether the inventor should get it at all, and whether it should extend past the first outside ranker. Deletion cascades and there is no undo, so a rule that widens is easier to ship later than one that turns out to have been too wide.
+
+Also fixed on the way past: `npm run types` had been dead on this box. `gen-types.js` spawned `npx.cmd` through `execFileSync`, which Node has refused since 20.12 (CVE-2024-27980) — EINVAL on Node 24, so the generated types couldn't be refreshed after a migration at all. It goes through a shell now.
+
 ### 2026-07-25 — Issue-board batch: identity, leaderboard integrity, and four reversals
 
 Worked the whole open issue board in one pass. The rulings worth citing later:
