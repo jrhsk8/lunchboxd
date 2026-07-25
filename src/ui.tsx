@@ -493,6 +493,16 @@ export function LoadError({ className = '' }: { className?: string }) {
 }
 
 /**
+ * The row's own layout: stacked on a phone, one line from `sm` up, and the
+ * `group` its owner controls hover off.
+ *
+ * Held here rather than passed in. Every call site used to restate this along
+ * with its own skin, so the five idioms the row documents were only true while
+ * three separate class strings agreed with each other (#100).
+ */
+const rowLayout = 'group flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3';
+
+/**
  * One row of a ranking list: headline on the left, then the fixed columns —
  * time, stars, score, heart, and the owner's controls.
  *
@@ -516,7 +526,7 @@ export function RankingRow({
   userId,
   onChanged,
   headline,
-  className,
+  className = '',
   controls = 'none',
   categoryName,
   pin = false,
@@ -525,7 +535,8 @@ export function RankingRow({
   userId: string | null;
   onChanged: () => void;
   headline: ReactNode;
-  className: string;
+  /** Only what is genuinely per-surface: the separator, or the hover panel. */
+  className?: string;
   controls?: 'none' | 'owner';
   categoryName?: string;
   pin?: boolean;
@@ -539,7 +550,7 @@ export function RankingRow({
 
   if (editing) {
     return (
-      <li className={className}>
+      <li className={`${rowLayout} ${className}`}>
         <EditRanking
           ranking={ranking}
           onClose={() => setEditing(false)}
@@ -553,7 +564,7 @@ export function RankingRow({
   }
 
   return (
-    <li className={className}>
+    <li className={`${rowLayout} ${className}`}>
       <span className="min-w-0 text-sm sm:flex-1">
         {headline}
         {/* The like leads the second line, in a fixed column, so it sits at the

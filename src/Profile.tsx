@@ -558,7 +558,7 @@ export function ProfilePage({
                     controls="owner"
                     pin={own}
                     categoryName={r.categories?.name}
-                    className="group flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
+                    className="border-b border-edge py-3 last:border-b-0"
                     headline={
                       /* Wraps on phones: one truncated line always cut the
                          category link off the end. */

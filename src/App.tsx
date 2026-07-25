@@ -60,7 +60,6 @@ import {
   profileHref,
   profileTags,
   RankingRow,
-  ReviewText,
   scoreTone,
   SortToggle,
   Tag,
@@ -207,7 +206,12 @@ function Site() {
         ) : route.page === 'notifications' ? (
           <NotificationsPage userId={session?.user.id ?? null} version={version} onRead={refresh} />
         ) : route.page === 'hashtag' ? (
-          <HashtagPage hashtag={route.hashtag} version={version} />
+          <HashtagPage
+            hashtag={route.hashtag}
+            version={version}
+            userId={session?.user.id ?? null}
+            onChanged={refresh}
+          />
         ) : route.page === 'category' ? (
           <CategoryPage
             name={route.name}
@@ -612,7 +616,7 @@ function CategoryField({
       <span className="relative flex flex-col">
         <input
           className={input}
-          placeholder="Pizza, Gas Station Sushi, Soup-Adjacent…"
+          placeholder="Pizza, Vegetables, Slop Bowl…"
           maxLength={60}
           value={value}
           role="combobox"
@@ -1210,7 +1214,7 @@ function RankingRows({
           onChanged={onChanged}
           controls="owner"
           categoryName={categoryName}
-          className="group flex flex-col gap-1 rounded-lg px-2 py-1.5 hover:bg-raised sm:flex-row sm:items-center sm:gap-3"
+          className="rounded-lg px-2 py-1.5 hover:bg-raised"
           headline={
             /* Username gets full display (never truncates). On phones the food
                wraps onto its own line rather than shortening — three lines is
@@ -1343,7 +1347,17 @@ function CategoryPage({
 }
 
 /** Every review carrying a given #hashtag, newest first. */
-function HashtagPage({ hashtag, version }: { hashtag: string; version: number }) {
+function HashtagPage({
+  hashtag,
+  version,
+  userId,
+  onChanged,
+}: {
+  hashtag: string;
+  version: number;
+  userId: string | null;
+  onChanged: () => void;
+}) {
   const clean = cleanHashtag(hashtag);
   const { rows, error } = useHashtagReviews(clean, version);
 
@@ -1365,38 +1379,35 @@ function HashtagPage({ hashtag, version }: { hashtag: string; version: number })
         <EmptyState line="No reviews yet" sub={<>Nobody has tagged #{clean} yet.</>} />
       ) : (
         <div className={`${panel} px-5 py-3`}>
+          {/* The shared row rather than a fourth hand-rolled one (#111). The
+              copy this replaced had drifted away from the other three and had
+              no like control at all, so a review found through its hashtag was
+              the one place on the site you couldn't like it. */}
           <ul className="m-0 flex list-none flex-col p-0">
             {rows.map((r) => (
-              <li
+              <RankingRow
                 key={r.id}
-                className="flex flex-col gap-1.5 border-b border-edge py-3 last:border-b-0"
-              >
-                <p className="m-0 text-sm text-ink italic">
-                  "<ReviewText text={r.review ?? ''} />"
-                </p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-faint">
-                  <ProfileLink
-                    username={r.profiles?.username ?? null}
-                    className="font-semibold"
-                    meta={r.profiles}
-                  />
-                  <span className="text-dim">on</span>
-                  <span className="text-ink">{r.food}</span>
-                  <span className="text-dim">in</span>
-                  {r.categories ? (
-                    <CategoryLink name={r.categories.name} />
-                  ) : (
-                    <span className="font-semibold text-clay">?</span>
-                  )}
-                  <span className="flex items-center gap-1.5">
-                    <Stars value={Number(r.score)} size={12} />
-                    <span className="font-bold tabular-nums text-ink">
-                      {Number(r.score).toFixed(1)}
-                    </span>
+                ranking={r}
+                userId={userId}
+                onChanged={onChanged}
+                className="border-b border-edge py-3 last:border-b-0"
+                headline={
+                  <span className="block break-words sm:truncate">
+                    <ProfileLink
+                      username={r.profiles?.username ?? null}
+                      className="font-bold"
+                      meta={r.profiles}
+                    />{' '}
+                    <span className="text-dim">on</span> {r.food}{' '}
+                    <span className="text-dim">in</span>{' '}
+                    {r.categories ? (
+                      <CategoryLink name={r.categories.name} />
+                    ) : (
+                      <span className="font-semibold text-clay">?</span>
+                    )}
                   </span>
-                  <span>· {timeAgo(r.created_at)}</span>
-                </div>
-              </li>
+                }
+              />
             ))}
           </ul>
         </div>
@@ -1435,7 +1446,7 @@ function ActivityFeed({
             ranking={a}
             userId={userId}
             onChanged={onChanged}
-            className="flex flex-col gap-1 border-b border-edge py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
+            className="border-b border-edge py-3 last:border-b-0"
             headline={
               /* Wraps on phones: truncated to one line the sentence always lost
                  its tail — the category, which is the link out of the feed. */
