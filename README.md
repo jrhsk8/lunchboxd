@@ -9,7 +9,10 @@ Like Letterboxd, but the subject matter is edible and the categories are communa
 - **Shared categories**: one global namespace (case-insensitive unique), first ranker invents it, everybody piles on.
 - **Global leaderboard**: categories sorted by average, with ranking and ranker counts; your personal average shown alongside the global one.
 - **Activity feed**: who ranked what, where, and how hard, site-wide, with live updates (Supabase realtime + poll fallback).
-- **Accounts**: guest sign-in with a handle (Supabase anonymous auth) or email magic link.
+- **Reviews**: a ranking can carry text, and a #hashtag in one becomes a link to every review sharing it.
+- **Likes**: other people can like a ranking, and you're told when one of yours is liked.
+- **Calling cards**: three stats you pick about yourself, on your profile and on the Eaters tab.
+- **Accounts**: guest sign-in with a serial handle (Supabase anonymous auth), or an email that buys you a handle of your own.
 
 ## Stack
 
@@ -29,4 +32,4 @@ Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` / `VITE_SUPA
 
 ## Docs
 
-[CLAUDE.md](CLAUDE.md) is the router: a read-when table over the `docs/` tree (data model, auth, app shell, copy voice, decisions log, deploy). Production runs at <https://lunchboxd.live/>; the deploy procedure and hosted-Supabase config live in [docs/meta/deploy.md](docs/meta/deploy.md).
+[CLAUDE.md](CLAUDE.md) is the router: a read-when table over the `docs/` tree (data model, auth, app shell, copy voice, the prose standard and glossary, decisions log, deploy). Production runs at <https://lunchboxd.live/>; the deploy procedure and hosted-Supabase config live in [docs/meta/deploy.md](docs/meta/deploy.md).

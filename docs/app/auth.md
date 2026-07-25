@@ -9,7 +9,7 @@ Both are real Supabase Auth sessions with a genuine `auth.uid()`:
 - **Guest** — Supabase anonymous sign-in (`is_anonymous: true`), created by the "Start ranking" button in one click. No handle is asked for and none is honoured: guests are named `guest-<6 hex>` (below). This is still the primary flow; the sign-in card is guest-first by design.
 - **Email account** — magic link (`signInWithOtp`), or a guest upgraded in place via "Keep account" (`updateUser({ email })` attaches an email to the same UID, so the handle and rankings carry over).
 
-The card's second section is the returning-user door: divider "already have an account?", button "Send sign-in link". It deliberately still creates an account for an address it hasn't seen (`shouldCreateUser` left at its default), so the same field serves sign-in and email-first signup; the helper line says so rather than letting it surprise anyone. Ruling: docs/meta/decisions.md 2026-07-24.
+The card's second section is the returning visitor's door: divider "already have an account?", button "Send sign-in link". It deliberately still creates an account for an address it hasn't seen (`shouldCreateUser` left at its default), so the same field serves sign-in and email-first signup; the helper line says so rather than letting it surprise anyone. Ruling: `decisions.md` 2026-07-24.
 
 ## Handles
 

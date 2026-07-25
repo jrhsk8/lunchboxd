@@ -1,6 +1,6 @@
 # Data model
 
-The Postgres schema, the RLS matrix, and how the client keeps its views fresh. Sourced from `supabase/migrations/` and `src/data.ts`, authoritative as of 2026-07-23.
+The Postgres schema, the RLS matrix, and how the client keeps its views fresh. Sourced from `supabase/migrations/` and `src/data.ts`, authoritative as of 2026-07-26.
 
 ## The one hard constraint
 
@@ -12,7 +12,8 @@ The Postgres schema, the RLS matrix, and how the client keeps its views fresh. S
 - **`categories`** — `id`, `name` (citext unique, 1–60 chars, so "pizza" and "Pizza" are one category), `created_by` (nullable FK), `created_at`. One global namespace, first ranker invents it.
 - **`rankings`** — `id`, `category_id` (cascade), `user_id` (cascade), `food` (1–120 chars), `score` (numeric(2,1), half-star steps 0.5–5 enforced by check), `hearted` (boolean), `review` (nullable text, 1–2000 chars), `top_rank` (nullable smallint 1–4), `created_at`. **The same food can be logged as many times as you eat it**, up to ten a day — see § Repeat rankings below; the old one-row-per-person-per-food unique index is gone. Rankings are **editable**: the update grant covers `(hearted, review, score, food, top_rank)`. That reverses an earlier "set at insert only" position — see decisions.md 2026-07-25. Edits are silent (no `edited_at`, no marker) and don't touch `created_at`, so an edit can't re-float a ranking up the feed.
 - **`category_stats`** (view, security_invoker) — one row per category: ranking_count, ranker_count, avg_score, last_ranked_at, weighted_score, created_by. The global leaderboard. `created_by` rides along so the client can tell whether to offer the inventor's delete button without a query per category; it is appended last because `create or replace view` may only add columns at the end. **`avg_score` is one-person-one-vote**: each person's scores within the category are averaged first, then those averages are averaged. **`weighted_score` is what the board sorts by** — a Bayesian prior of three notional voters at the site-wide mean, so a new category with a single 5.0 doesn't outrank fifty rankings averaging 4.8. Read `avg_score` when displaying a category's score, `weighted_score` only for ordering.
-- **`profile_stats`** (view, security_invoker) — one row per profile: ranking_count, category_count, hearted_count, avg_score. The profile page's tiles read from here rather than deriving them from the capped ranking list, which made a heavy user's "lifetime average" the average of their most recent 500.
+- **`likes`** — `id`, `ranking_id` (cascade), `user_id` (cascade), `created_at`, unique on `(ranking_id, user_id)`. What somebody else gives a ranking, as opposed to the author's own `hearted` mark. See § Likes.
+- **`profile_stats`** (view, security_invoker) — one row per profile: ranking_count, category_count, hearted_count, avg_score. The profile page's tiles read from here rather than deriving them from the capped ranking list, which made a heavy eater's "lifetime average" the average of their most recent 500.
 
 ## The Eaters view
 
@@ -26,13 +27,23 @@ Two things it deliberately does rather than leaving to the client. `where rankin
 
 The client maps a row into `CardStats` through **`cardStatsFrom`** (data.ts), shared with `useCardStats` — one mapping, so a card can't say different things about the same person depending on which page drew it.
 
+## Likes
+
+`likes` (`20260725014000_likes.sql`, `20260725021000_likes_read_the_account.sql`) is the mark **other people** give a ranking. It lands on any ranking, with or without review text, and it is counted per row through PostgREST's embedded aggregate (`likes(count)` in `RANKING_FIELDS`), so the count arrives with the row instead of costing a query per surface.
+
+Three rules, all enforced in the insert policy. **Email accounts only** — anonymous signup is free and uncaptcha'd (#28), so a guest-likeable count is stuffable by one person with a handful of browser sessions; guests get the control anyway, as the site's strongest argument for keeping an account. **One per person per ranking**, by unique constraint. **No self-likes**, because `hearted` already is that.
+
+The email gate reads **`caller_has_email()`** (SECURITY DEFINER over `auth.users`), not the JWT's `is_anonymous` claim: the claim stays stale until the session refreshes and would refuse somebody who had just confirmed their address. The client's own copy of the check may lean on the claim, because being over-invited is harmless — **never invert that to grant liking from the claim**.
+
+**Any edit to `food`, `score` or `review` clears the likes** (`rankings_edit_clears_likes`, an `after update` trigger scoped to those three columns). A like is for what was on screen when it was given; the accepted cost is that fixing a typo in a review costs the likes it earned. Hearting and pinning are not edits and clear nothing.
+
 ## Notifications
 
 `notifications` (`20260725030000_notifications.sql`) — `user_id` (the **recipient**), `actor_id`, `ranking_id`, `kind` (checked, `'like'` today), `created_at`, `read_at`. Unique on `(user_id, actor_id, ranking_id, kind)`, so like/unlike/like again is one row rather than three.
 
 **This is the only private table here.** Everything else on the site is world-readable; `anon` has no grant at all on this one, and the select policy is `user_id = auth.uid()`. There is **no insert or delete grant for anybody** — rows arrive from the trigger and leave with the like they describe, so a notification can be neither forged nor quietly deleted by the person it embarrasses. The update grant is **column-scoped to `read_at`**, which is what stops a recipient rewriting who a notification came from; RLS can't narrow to a column, so the grant has to.
 
-Two triggers on `likes` keep it in step: `likes_notify_author` writes the row (SECURITY DEFINER — the liker has no insert grant, and shouldn't, because the row belongs to the person being told), `likes_unnotify_author` removes it. **Retention is therefore not a policy but a consequence**: a like disappears when it's taken back, when the ranking is deleted (cascade), and when the ranking is edited (§ Hearts / the clear-likes trigger), and its notification goes with it every time. Nothing accumulates and there is no age rule.
+Two triggers on `likes` keep it in step: `likes_notify_author` writes the row (SECURITY DEFINER — the liker has no insert grant, and shouldn't, because the row belongs to the person being told), `likes_unnotify_author` removes it. **Retention is therefore not a policy but a consequence**: a like disappears when it's taken back, when the ranking is deleted (cascade), and when the ranking is edited (§ Likes, the clear-likes trigger), and its notification goes with it every time. Nothing accumulates and there is no age rule.
 
 Per-item `read_at` rather than a single `seen_at` on the profile row is a cost the **surface** chose: a page that lists items invites marking one read (app-shell.md § Pages and routing, #46). Opening the page marks everything read (`markNotificationsRead`), but the unread dots stay drawn for that visit — clearing them the instant they render would mean a page that never shows you what was new.
 
@@ -40,7 +51,7 @@ Guests receive notifications. They can't give a like (§ Likes / #42), but they 
 
 ## Repeat rankings
 
-The same person may log the same food in the same category **as many times as they eat it, up to ten in a rolling 24 hours** (`20260725013000_allow_repeat_rankings.sql`). This reversed `rankings_one_per_food_idx` the same day it shipped — owner-ruled off a user report: someone had several Zyns over an evening and the site refused every one after the first.
+The same person may log the same food in the same category **as many times as they eat it, up to ten in a rolling 24 hours** (`20260725013000_allow_repeat_rankings.sql`). This reversed `rankings_one_per_food_idx` the same day it shipped — owner-ruled off a report from somebody who had several Zyns over an evening and the site refused every one after the first.
 
 The reason it was safe to drop is worth keeping straight, because the index's own comment argues the opposite. It was there to stop one account logging "Pizza" fifty times at 5.0 to move the board. **The view already prevents that**: `avg_score` averages each person's scores first and then averages those, so a category counts a person once however many rankings they file — ten identical 5.0s move it exactly as far as one does. By the time the index landed, in the same batch, it was guarding a door the view had locked.
 
@@ -49,7 +60,7 @@ What the index _was_ still buying is protection from mashing, so a `before inser
 - **the stutter** — identical food _and_ score, same person, same category, inside a minute. Four such groups (six rows) were in the live data when the index was created, all accidental double-submits;
 - **the cap** — ten of the same food per person per category per rolling 24 hours. Rolling rather than calendar: the server keeps UTC and the people using the site do not, so a calendar day would reset mid-afternoon for them.
 
-Both are raised as **P0001 with the sentence the user should read**, which `writeError` passes through untouched — that pass-through is why the trigger's messages are written as copy and belong under [voice.md](../writing/voice.md).
+Both are raised as **P0001 with the sentence the person should read**, which `writeError` passes through untouched — that pass-through is why the trigger's messages are written as copy and belong under [voice.md](../writing/voice.md).
 
 ## The top four
 
@@ -61,7 +72,9 @@ The pin control is deliberately only on **your own profile** (`pin` prop on `Ran
 
 ## Hearts
 
-`hearted` is a flag on the ranking itself: the **author's** "loved it" mark, independent of the score, Letterboxd-style. Everyone sees it; only the owner can flip it (column-level `grant update (hearted)` + an owner-only update policy). An earlier design (`likes` table, anyone hearts anyone) was built and then replaced the same day — see decisions.md 2026-07-23. Don't reintroduce cross-user likes without a ruling.
+`hearted` is a flag on the ranking itself: the **author's** "loved it" mark, independent of the score, Letterboxd-style. Everyone sees it; only the owner can flip it (column-level `grant update (hearted)` + an owner-only update policy).
+
+**The heart and the like are two marks, not one.** An early design made them one — a `likes` table where anyone hearted anyone — and it was replaced the same day, because one mark doing two jobs left "loved it" ambiguous about whose opinion it carried (`decisions.md` 2026-07-23). Cross-user likes came back on 2026-07-25 as a **separate** mark under stricter rules, and `hearted` was untouched by that; § Likes has the table, and the ruling is in `decisions.md`.
 
 ## Supporters
 

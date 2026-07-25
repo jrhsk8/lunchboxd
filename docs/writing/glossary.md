@@ -51,6 +51,8 @@ Prose absolutely. Identifiers too, with two exceptions:
 
 Where a term is two words, the identifier uses the natural single-word form — `card`, `slot`, `accent` — not a contraction of the phrase.
 
+One compound survives the ban on _user_: **user-facing**, as in a user-facing string. It is a term of art about which side of the screen a thing is on, it names no person, and "eater-facing copy" would be a joke at the reader's expense. Nothing else licenses the word.
+
 ## Known contradictions
 
 Live, deliberate, and each judged rather than fixed by reflex:

@@ -41,12 +41,13 @@ Commented-out code (git remembers it), changelog or attribution comments, banner
 
 Every doc is exactly one of these, and says which by its shape. A doc that wants to be two kinds is two docs.
 
-| Kind      | Doc                                                                              | What it owes a reader                                                        |
-| --------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Router    | `CLAUDE.md`                                                                      | Triggers, hard rules, commands — and **no detail**                           |
-| Reference | `data-model.md`, `auth.md`, `app-shell.md`, `voice.md`, this file, `glossary.md` | What is true now, organised by the thing; the rule, then why it is that rule |
-| Log       | `decisions.md`                                                                   | Dated entries, newest first, append-only                                     |
-| Runbook   | `deploy.md`                                                                      | Ordered steps, plus the gotchas that cost hours                              |
+| Kind       | Doc                                                                              | What it owes a reader                                                                                                         |
+| ---------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Router     | `CLAUDE.md`                                                                      | Triggers, hard rules, commands — and **no detail**                                                                            |
+| Reference  | `data-model.md`, `auth.md`, `app-shell.md`, `voice.md`, this file, `glossary.md` | What is true now, organised by the thing; the rule, then why it is that rule                                                  |
+| Log        | `decisions.md`                                                                   | Dated entries, newest first, append-only                                                                                      |
+| Runbook    | `deploy.md`                                                                      | Ordered steps, plus the gotchas that cost hours                                                                               |
+| Front page | `README.md`                                                                      | What the site is, for somebody who has never seen it — the one doc addressed to a visitor, so it follows [voice.md](voice.md) |
 
 ### What keeps the router thin
 
@@ -74,7 +75,7 @@ Code by backticked path (`src/calling-card.ts`, `20260725022000_calling_card.sql
 
 ### Reversals
 
-A ruling that reverses an earlier one gets a **new dated entry** in `decisions.md` naming what it reverses and why; the old entry is never edited, because it records what was believed then. Reference docs are **edited in place** to describe only what is true now — a reference carrying a struck-through paragraph is a log pretending to be a reference.
+A ruling that reverses an earlier one gets a **new dated entry** in `decisions.md` naming what it reverses and why; the old entry is never edited, because it records what was believed then. **That holds against this document too**: a past entry saying "user" or "rating" keeps saying it, because rewording the record of a decision is a quieter kind of falsification than rewriting it. Reference docs are **edited in place** to describe only what is true now — a reference carrying a struck-through paragraph is a log pretending to be a reference.
 
 The licensed exception is `deploy.md`'s **"History, not a live instruction"** convention, where a past gotcha is worth keeping beside the step it once broke. Marked as such, or not written.
 
