@@ -8,8 +8,13 @@
 // the restore procedure.
 //
 // The migrations in supabase/migrations/ ARE the schema definition, so
-// migrations + this data dump is a complete restore. That is the whole
-// contract: this file backs up rows, not DDL.
+// migrations + this data dump restores the `lunchboxd` schema and its rows.
+// That is the whole contract: this file backs up rows, not DDL.
+//
+// What it cannot restore on its own: every profile is a foreign key into
+// `auth.users`, which belongs to Supabase and is not dumped here. Into an
+// empty project, the profile inserts would fail. This is a recovery tool for
+// rows after a bad migration, not a way to rebuild the site from nothing.
 //
 //   node supabase/backup.js                 → ../lunchboxd-backups/<stamp>.json
 //   node supabase/backup.js <directory>
@@ -23,7 +28,57 @@ import { fileURLToPath } from 'node:url';
 import { run } from './apply.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const TABLES = ['profiles', 'categories', 'rankings'];
+
+/**
+ * Every base table in the schema, parents before children.
+ *
+ * Asked rather than listed: the hardcoded list said profiles, categories and
+ * rankings, and stayed saying it when `likes` and `notifications` shipped — so
+ * the backup was silently missing two tables for as long as they existed, and
+ * a like is the one row here that regenerates from nothing.
+ *
+ * The order is a topological sort over the schema's own foreign keys, because
+ * a restore has to insert a parent before its children and the dump is what
+ * carries that order.
+ */
+async function tablesInDependencyOrder() {
+  const tables = (
+    await run(`select c.relname as name
+                 from pg_class c
+                 join pg_namespace n on n.oid = c.relnamespace
+                where n.nspname = 'lunchboxd' and c.relkind = 'r'
+                order by c.relname`)
+  ).map((r) => r.name);
+
+  const edges = (
+    await run(`select child.relname as child, parent.relname as parent
+                 from pg_constraint k
+                 join pg_class child on child.oid = k.conrelid
+                 join pg_class parent on parent.oid = k.confrelid
+                 join pg_namespace cn on cn.oid = child.relnamespace
+                 join pg_namespace pn on pn.oid = parent.relnamespace
+                where k.contype = 'f'
+                  and cn.nspname = 'lunchboxd' and pn.nspname = 'lunchboxd'`)
+  ).filter((e) => e.child !== e.parent);
+
+  const ordered = [];
+  const placed = new Set();
+  // A cycle would loop forever, so the pass count is capped at the table count:
+  // whatever is left after that is emitted in name order rather than dropped.
+  for (let pass = 0; pass < tables.length && placed.size < tables.length; pass++) {
+    for (const t of tables) {
+      if (placed.has(t)) continue;
+      const waiting = edges.some((e) => e.child === t && !placed.has(e.parent));
+      if (!waiting) {
+        ordered.push(t);
+        placed.add(t);
+      }
+    }
+  }
+  return [...ordered, ...tables.filter((t) => !placed.has(t))];
+}
+
+const TABLES = await tablesInDependencyOrder();
 
 const outDir = process.argv[2] || path.join(HERE, '..', '..', 'lunchboxd-backups');
 fs.mkdirSync(outDir, { recursive: true });
