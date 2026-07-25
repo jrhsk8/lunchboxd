@@ -38,7 +38,7 @@ import {
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
-import { cleanHashtag, plural } from './text';
+import { cleanHashtag, matchCategories, plural } from './text';
 import {
   btnPrimary,
   categoryHref,
@@ -604,6 +604,132 @@ function Terms() {
   );
 }
 
+/**
+ * The category field: one input that both joins an existing category and
+ * invents a new one, with the matching categories offered underneath as you
+ * type.
+ *
+ * The suggestions are drawn here rather than by a native `<datalist>`, which is
+ * what this used to be. Two reasons, one of them a bug: on Android Chrome the
+ * native popup left a ghost of its own text behind when it closed, because the
+ * list is composited by the browser and outside anything React can repaint. The
+ * other is that a datalist only matches from the start of a name and shows
+ * nothing else about a category, so "sushi" never found "Gas Station Sushi" and
+ * nothing said which category everybody was already using — the two things that
+ * decide whether somebody joins a category or invents a near-duplicate.
+ *
+ * The ranking rule is `matchCategories` in text.ts, where it is tested; this
+ * owns only the control and its keyboard.
+ */
+function CategoryField({
+  stats,
+  value,
+  onChange,
+  known,
+}: {
+  stats: CategoryStat[];
+  value: string;
+  onChange: (name: string) => void;
+  known: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const suggestions = matchCategories(value, stats);
+  // Nothing to offer once the typed name is the only match: the list would be
+  // one row repeating the field back.
+  const only =
+    suggestions.length === 1 && suggestions[0].name.toLowerCase() === value.trim().toLowerCase();
+  const show = open && suggestions.length > 0 && !only;
+
+  function pick(name: string) {
+    onChange(name);
+    setOpen(false);
+    setActive(0);
+  }
+
+  return (
+    <label className={label}>
+      Category
+      {/* relative, so the list hangs off the field rather than pushing the rest
+          of the form down every time somebody types a letter. */}
+      <span className="relative flex flex-col">
+        <input
+          className={input}
+          placeholder="Pizza, Gas Station Sushi, Soup-Adjacent…"
+          maxLength={60}
+          value={value}
+          role="combobox"
+          aria-expanded={show}
+          aria-controls="category-suggestions"
+          aria-autocomplete="list"
+          aria-activedescendant={show ? `category-suggestion-${active}` : undefined}
+          autoComplete="off"
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+            setActive(0);
+          }}
+          onFocus={() => setOpen(true)}
+          // A blur that lands on a suggestion would close the list before the
+          // tap registers, so the close waits a beat for the click.
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (!show) return;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const step = e.key === 'ArrowDown' ? 1 : -1;
+              setActive((i) => (i + step + suggestions.length) % suggestions.length);
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              pick(suggestions[active].name);
+            } else if (e.key === 'Escape') {
+              setOpen(false);
+            }
+          }}
+        />
+        {show && (
+          <ul
+            id="category-suggestions"
+            role="listbox"
+            aria-label="matching categories"
+            className={`${panel} absolute top-full right-0 left-0 z-20 m-0 mt-1 max-h-56 list-none overflow-y-auto p-1`}
+          >
+            {suggestions.map((c, i) => (
+              <li key={c.id} role="none">
+                <button
+                  type="button"
+                  id={`category-suggestion-${i}`}
+                  role="option"
+                  aria-selected={i === active}
+                  className={`flex w-full cursor-pointer items-baseline justify-between gap-3 rounded-md border-0 px-2.5 py-2 text-left font-sans text-sm transition-colors ${
+                    i === active ? 'bg-raised text-ink' : 'bg-transparent text-dim hover:bg-raised'
+                  }`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(c.name)}
+                >
+                  <span className="min-w-0 flex-1 truncate font-semibold normal-case">
+                    {c.name}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-normal tracking-normal text-faint normal-case tabular-nums">
+                    {c.ranking_count} {plural(c.ranking_count, 'ranking', 'rankings')}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </span>
+      <span className="text-[11px] font-normal tracking-normal normal-case text-faint">
+        {value.trim() === ''
+          ? 'Pick one everyone uses, or invent one.'
+          : known
+            ? 'Joining a category that already exists.'
+            : `Inventing "${value.trim()}" for everybody.`}
+      </span>
+    </label>
+  );
+}
+
 function RankForm({
   userId,
   stats,
@@ -653,36 +779,7 @@ function RankForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* One field instead of a select plus a conditional "new category" input.
-          The select held every category that exists with no type-ahead beyond
-          the browser's first-letter jump, so at 200 categories the cheapest
-          path was inventing a near-duplicate — which is exactly the mess the
-          admin merge tool exists to clean up. A datalist gives type-ahead and
-          keeps "type a name nobody has used yet" in the same control, which
-          also retires the NEW_SENTINEL / creatingNew two-field dance. */}
-      <label className={label}>
-        Category
-        <input
-          className={input}
-          list="lunchboxd-categories"
-          placeholder="Pizza, Gas Station Sushi, Soup-Adjacent…"
-          maxLength={60}
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        />
-        <datalist id="lunchboxd-categories">
-          {[...stats].sort(byName).map((c) => (
-            <option key={c.id} value={c.name} />
-          ))}
-        </datalist>
-        <span className="text-[11px] font-normal tracking-normal normal-case text-faint">
-          {category.trim() === ''
-            ? 'Pick one everyone uses, or invent one.'
-            : known
-              ? 'Joining a category that already exists.'
-              : `Inventing "${category.trim()}" for everybody.`}
-        </span>
-      </label>
+      <CategoryField stats={stats} value={category} onChange={setCategory} known={known} />
 
       <label className={label}>
         What did you eat?

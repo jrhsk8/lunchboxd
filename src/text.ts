@@ -59,6 +59,48 @@ export function cleanHashtag(hashtag: string): string {
   return hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
 }
 
+/** The least a category needs to be suggested: its name, and how used it is. */
+export type Suggestable = { name: string; ranking_count: number };
+
+/** How many suggestions the category field offers at once. */
+export const SUGGESTION_LIMIT = 8;
+
+/**
+ * The categories worth offering for what somebody has typed so far, best first.
+ *
+ * Three tiers, because a near-duplicate category is the mess this is here to
+ * prevent: an exact name leads (you are joining it, not inventing it), then
+ * names starting with what was typed, then names containing it anywhere — so
+ * "sushi" still finds "Gas Station Sushi", which a prefix match never would.
+ * Within a tier the most-ranked category wins, since the point is to steer
+ * people into the category everybody else is already using.
+ *
+ * An empty query offers the busiest categories rather than nothing: on a phone
+ * the field is the only place to discover what exists.
+ */
+export function matchCategories<T extends Suggestable>(
+  query: string,
+  categories: readonly T[],
+  limit: number = SUGGESTION_LIMIT,
+): T[] {
+  const q = query.trim().toLowerCase();
+  const byUse = [...categories].sort((a, b) => b.ranking_count - a.ranking_count);
+  if (q === '') return byUse.slice(0, limit);
+
+  const tier = (name: string) => {
+    const n = name.toLowerCase();
+    if (n === q) return 0;
+    if (n.startsWith(q)) return 1;
+    return n.includes(q) ? 2 : 3;
+  };
+  return byUse
+    .map((c) => ({ c, tier: tier(c.name) }))
+    .filter((x) => x.tier < 3)
+    .sort((a, b) => a.tier - b.tier)
+    .slice(0, limit)
+    .map((x) => x.c);
+}
+
 /** A piece of a review: either plain text, or a hashtag to link. */
 export type ReviewPiece = { text: string } | { hashtag: string };
 

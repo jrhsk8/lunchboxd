@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cleanHashtag,
   hashtagsIn,
+  matchCategories,
   nextTopSlot,
   parseHash,
   PG,
@@ -87,6 +88,60 @@ describe('cleanHashtag', () => {
   it('gives back nothing when nothing survives', () => {
     expect(cleanHashtag('!!!')).toBe('');
     expect(cleanHashtag('')).toBe('');
+  });
+});
+
+describe('matchCategories', () => {
+  // The rule that decides whether somebody joins the category everybody uses
+  // or invents a near-duplicate of it, which is the mess the admin merge tool
+  // exists to clean up.
+  const cats = [
+    { name: 'Pizza', ranking_count: 40 },
+    { name: 'Gas Station Sushi', ranking_count: 12 },
+    { name: 'Sushi', ranking_count: 30 },
+    { name: 'Pizza Rolls', ranking_count: 3 },
+    { name: 'Soup-Adjacent', ranking_count: 1 },
+  ];
+  const names = (q: string, limit?: number) => matchCategories(q, cats, limit).map((c) => c.name);
+
+  it('offers the busiest categories before anything is typed', () => {
+    expect(names('')).toEqual([
+      'Pizza',
+      'Sushi',
+      'Gas Station Sushi',
+      'Pizza Rolls',
+      'Soup-Adjacent',
+    ]);
+  });
+
+  it('puts an exact name first, however unused it is', () => {
+    expect(names('pizza rolls')[0]).toBe('Pizza Rolls');
+  });
+
+  it('prefers a prefix over a match in the middle', () => {
+    // The case that matters: "Sushi" is what most people mean, but
+    // "Gas Station Sushi" contains the word too.
+    expect(names('sushi')).toEqual(['Sushi', 'Gas Station Sushi']);
+  });
+
+  it('finds a word in the middle, which a prefix match never would', () => {
+    expect(names('station')).toEqual(['Gas Station Sushi']);
+  });
+
+  it('orders within a tier by how used the category is', () => {
+    expect(names('pizza')).toEqual(['Pizza', 'Pizza Rolls']);
+  });
+
+  it('ignores case and surrounding space, as the citext column does', () => {
+    expect(names('  PIZZA  ')[0]).toBe('Pizza');
+  });
+
+  it('offers nothing for a name nobody has used', () => {
+    expect(names('gabagool')).toEqual([]);
+  });
+
+  it('caps the list', () => {
+    expect(names('', 2)).toEqual(['Pizza', 'Sushi']);
   });
 });
 
