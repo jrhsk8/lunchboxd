@@ -6,9 +6,10 @@ import {
   CARD_STAT_GROUPS,
   CARD_STAT_LABELS,
   cardTrio,
+  isCardStatKey,
   resolveAccent,
   resolveSlot,
-  type CardAccentKey,
+  type CardStatKey,
   type CardStats,
 } from './calling-card';
 import { saveCard } from './data';
@@ -28,7 +29,7 @@ import { panel, Tag, type TagKind } from './ui';
 export function CallingCard({
   handle,
   href,
-  badges = [],
+  tags = [],
   stats,
   slots,
   accent,
@@ -42,7 +43,7 @@ export function CallingCard({
    * already on the page it would link to.
    */
   href?: string;
-  badges?: TagKind[];
+  tags?: TagKind[];
   stats: CardStats;
   slots: readonly (string | null)[] | null;
   accent: string | null;
@@ -74,7 +75,7 @@ export function CallingCard({
         ) : (
           <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{handle}</span>
         )}
-        {badges.map((t) => (
+        {tags.map((t) => (
           <Tag key={t} kind={t} size={9} />
         ))}
         {onEdit && (
@@ -139,7 +140,7 @@ export function CardStudio({
   onSaved: () => void;
   onClose: () => void;
 }) {
-  const [picks, setPicks] = useState<string[]>(() => [...cardTrio(slots)]);
+  const [picks, setPicks] = useState<CardStatKey[]>(() => [...cardTrio(slots)]);
   const [tint, setTint] = useState<string | null>(accent);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +174,17 @@ export function CardStudio({
             <select
               className={selectClass}
               value={pick}
-              onChange={(e) => setPicks(picks.map((p, i) => (i === slot ? e.target.value : p)))}
+              // Narrowed here rather than held as a string: the fourteen keys
+              // are pinned by a CHECK constraint in
+              // `20260725022000_calling_card.sql`, and the studio is the one
+              // component whose whole job is choosing from them (#99). Every
+              // option below comes from CARD_STAT_GROUPS, so the guard only
+              // fires if the picker and the vocabulary disagree.
+              onChange={(e) => {
+                const key = e.target.value;
+                if (!isCardStatKey(key)) return;
+                setPicks(picks.map((p, i) => (i === slot ? key : p)));
+              }}
             >
               {CARD_STAT_GROUPS.map((group) => (
                 <optgroup key={group.group} label={group.group}>
@@ -214,7 +225,7 @@ export function CardStudio({
               className={`h-5 w-5 cursor-pointer rounded-full border ${
                 tint === key ? 'border-ink' : 'border-edge'
               }`}
-              style={{ background: accentToken(key as CardAccentKey) }}
+              style={{ background: accentToken(key) }}
               onClick={() => setTint(key)}
             />
           ))}

@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { cardStatsFrom, type CardStats, type CardStatsRow } from './calling-card';
+import type { Database } from './database.types';
 import { supabase } from './supabase';
 import { nextTopSlot, PG, writeError, type WriteError } from './text';
 
@@ -140,12 +141,11 @@ export function useProfile(username: string, version: number) {
 
   useEffect(() => {
     if (!supabase) return;
-    const client = supabase;
     let alive = true;
     (async () => {
       // `username` is citext, so this matches regardless of case — #/u/Jack
       // finds `jack`.
-      const { data: prof, error: profErr } = await client
+      const { data: prof, error: profErr } = await supabase
         .from('profiles')
         .select(
           'id, username, created_at, is_admin, is_supporter, banned_at, tags, card_slot_1, card_slot_2, card_slot_3, card_accent',
@@ -162,13 +162,13 @@ export function useProfile(username: string, version: number) {
       if (!prof) return;
 
       const [listRes, statRes, topRes] = await Promise.all([
-        client
+        supabase
           .from('rankings')
           .select(`${RANKING_FIELDS}, category_id, categories(name)`)
           .eq('user_id', prof.id)
           .order('created_at', { ascending: false })
           .limit(500),
-        client
+        supabase
           .from('profile_stats')
           .select('ranking_count, category_count, hearted_count, avg_score')
           .eq('user_id', prof.id)
@@ -176,7 +176,7 @@ export function useProfile(username: string, version: number) {
         // Its own query rather than a filter over the list above: the list is
         // capped at 500 and ordered by recency, so a top four picked from a
         // heavy eater's older rankings would simply not be in it.
-        client
+        supabase
           .from('rankings')
           .select(`${RANKING_FIELDS}, category_id, categories(name)`)
           .eq('user_id', prof.id)
@@ -251,6 +251,8 @@ export function useBoard() {
 
   useEffect(() => {
     if (!supabase) return;
+    // The one place the local alias earns its keep: the cleanup below runs
+    // after the effect returns, and the null check doesn't reach into it.
     const client = supabase;
     const channel = client
       .channel('rankings-live')
@@ -301,10 +303,9 @@ export function useCategoryStat(name: string, version: number) {
 
   useEffect(() => {
     if (!supabase) return;
-    const client = supabase;
     let alive = true;
     (async () => {
-      const { data: cat, error: catErr } = await client
+      const { data: cat, error: catErr } = await supabase
         .from('categories')
         .select('id')
         .eq('name', name)
@@ -319,7 +320,7 @@ export function useCategoryStat(name: string, version: number) {
         setStat(null);
         return;
       }
-      const { data, error: statErr } = await client
+      const { data, error: statErr } = await supabase
         .from('category_stats')
         .select('*')
         .eq('id', cat.id)
@@ -343,7 +344,7 @@ export function useCategoryStat(name: string, version: number) {
 /**
  * Rankings whose review contains a given #hashtag, newest first. The DB does a
  * case-insensitive substring prefilter (`ilike %#tag%`, backed by the trigram
- * index); the client then refines with a word-boundary regex so "#tag" doesn't
+ * index); the supabase then refines with a word-boundary regex so "#tag" doesn't
  * match "#tagged". That boundary rule must stay in step with HASHTAG_RE in
  * `src/text.ts` — both are covered by `src/text.test.ts`.
  */
@@ -363,10 +364,9 @@ export function useHashtagReviews(hashtag: string, version: number) {
       setRows([]);
       return;
     }
-    const client = supabase;
     let alive = true;
     (async () => {
-      const { data, error: err } = await client
+      const { data, error: err } = await supabase
         .from('rankings')
         .select(`${RANKING_FIELDS}, categories(name)`)
         .ilike('review', `%#${clean}%`)
@@ -556,7 +556,13 @@ export type Eater = CardStatsRow & {
 
 export type EaterSort = 'recent' | 'rankings' | 'likes' | 'az';
 
-const EATER_ORDER: Record<EaterSort, { column: string; ascending: boolean }> = {
+/**
+ * A column of the `eaters` view, taken from the generated types so a typo is a
+ * compile error rather than a PostgREST 400 the tab renders as a failure (#98).
+ */
+type EaterColumn = keyof Database['lunchboxd']['Views']['eaters']['Row'];
+
+const EATER_ORDER: Record<EaterSort, { column: EaterColumn; ascending: boolean }> = {
   recent: { column: 'last_ranked_at', ascending: false },
   rankings: { column: 'ranking_count', ascending: false },
   likes: { column: 'likes_received', ascending: false },
@@ -569,7 +575,7 @@ export const EATERS_PAGE = 24;
 /**
  * The Eaters tab: everyone who has ever ranked, with what their card needs.
  *
- * Sorted and paged in the database rather than in the client. The tab shows 24
+ * Sorted and paged in the database rather than in the supabase. The tab shows 24
  * of seventy-odd and offers four orderings; sorting here would mean fetching
  * every eater and their whole card to draw a third of them, and the cap would
  * be a slice rather than a limit. `count: 'exact'` rides along so the button
@@ -664,7 +670,7 @@ export function useNotifications(userId: string | null, version: number) {
       // RLS is what actually scopes these rows, and it is not going anywhere.
       // The filter is the second line: without it the query claims to be about
       // one person and isn't, and the day that policy is widened for a new
-      // `kind`, the client would quietly start reading other people's news.
+      // `kind`, the supabase would quietly start reading other people's news.
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(100)
@@ -815,7 +821,7 @@ export async function rankFood(opts: {
 /**
  * Edit one of your own rankings in place. The column grant covers exactly these
  * four fields, so a ranking can't be moved between people or categories from
- * the client. Edits are silent by design — no marker, and `created_at` doesn't
+ * the supabase. Edits are silent by design — no marker, and `created_at` doesn't
  * move, so editing can't re-float a ranking up the activity feed.
  */
 export async function updateRanking(

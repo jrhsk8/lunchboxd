@@ -32,10 +32,10 @@ import {
 } from './data';
 import { StarInput, Stars } from './Stars';
 import { HASHTAG_RE, parseHash, timeAgo, type Route } from './text';
-import { profileTags, TAG_STYLES, type ProfileBadges, type TagKind } from './tags';
+import { profileTags, TAG_STYLES, type ProfileTags, type TagKind } from './tags';
 
 export { hashtagsIn, timeAgo } from './text';
-export { profileTags, SELF_TAGS, type ProfileBadges, type TagKind } from './tags';
+export { profileTags, SELF_TAGS, type ProfileTags, type TagKind } from './tags';
 export type { Route } from './text';
 
 export const panel = 'rounded-(--radius-card) border border-edge bg-panel shadow-(--shadow-hard)';
@@ -242,14 +242,17 @@ export function CategoryLink({ name, className = '' }: { name: string; className
  * spend the single flair slot.
  */
 export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
-  const { label, tone } = TAG_STYLES[kind];
+  // Not destructured as `label`: this module exports a `label` class string,
+  // and the shadow means reaching for the idiom in here silently gets a chip's
+  // caption instead (#102).
+  const { label: caption, tone } = TAG_STYLES[kind];
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md border border-current/35 bg-current/10 px-1.5 py-px align-middle font-semibold whitespace-nowrap ${tone}`}
       style={{ fontSize: size }}
     >
       <span className="h-1 w-1 rounded-[2px] bg-current" aria-hidden />
-      {label}
+      {caption}
     </span>
   );
 }
@@ -261,7 +264,7 @@ export function ProfileLink({
 }: {
   username: string | null;
   className?: string;
-  meta?: ProfileBadges | null;
+  meta?: ProfileTags | null;
 }) {
   if (!username) return <span className={className}>someone</span>;
   return (
@@ -542,7 +545,10 @@ function LikeControl({
           on ? 'text-clay hover:text-clay-hover' : 'text-faint hover:text-clay'
         }`}
         onClick={async () => {
-          if (viewer !== 'email') {
+          // `userId` is in the guard rather than asserted below it: an email
+          // viewer always has one, but that is a fact about how the provider is
+          // fed, not one the type carries (#98).
+          if (viewer !== 'email' || userId === null) {
             setInvitation(
               viewer === 'out'
                 ? 'Sign in to like this. An email is all it takes.'
@@ -552,7 +558,7 @@ function LikeControl({
           }
           const next = !on;
           setPending(next);
-          const { error } = await setLike(ranking.id, userId as string, next);
+          const { error } = await setLike(ranking.id, userId, next);
           if (error) {
             // Rejected — a ban, a stale session, a policy the client didn't
             // know about. Put the count back and say what happened.

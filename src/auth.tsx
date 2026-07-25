@@ -26,13 +26,12 @@ export function useAuth() {
       return;
     }
     let alive = true;
-    const client = supabase;
     const user = session.user;
     (async () => {
       // The profile row is created by a DB trigger; on a brand-new account it
       // can land a beat after the session does, so retry briefly.
       for (let attempt = 0; attempt < 4; attempt++) {
-        const { data } = await client
+        const { data } = await supabase
           .from('profiles')
           .select('username, is_admin')
           .eq('id', user.id)

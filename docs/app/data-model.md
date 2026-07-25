@@ -17,7 +17,7 @@ The Postgres schema, the RLS matrix, and how the client keeps its views fresh. S
 
 ## The Eaters view
 
-`eaters` (view, security_invoker, `20260725040000_eaters.sql`) — one row per person **who has ever ranked**, carrying the handle, the badges, the three chosen card slots and the accent, every column of `profile_card_stats`, and `last_ranked_at`.
+`eaters` (view, security_invoker, `20260725040000_eaters.sql`) — one row per person **who has ever ranked**, carrying the handle, the tags, the three chosen card slots and the accent, every column of `profile_card_stats`, and `last_ranked_at`.
 
 It exists so the Eaters tab can sort and page **in the database**. The tab shows 24 of seventy-odd across four orderings; doing that client-side would mean fetching every eater's whole card to draw a third of them, and the cap would be a slice rather than a limit.
 

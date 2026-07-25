@@ -403,7 +403,11 @@ export function ProfilePage({
 
   const list = rankings ?? [];
   const own = userId === profile.id;
-  const banned = profile.banned_at !== null;
+  // The timestamp rather than a boolean off it: the ban notice renders the
+  // date, and a boolean derived from a property narrows nothing, which is what
+  // the non-null assertion down there was standing in for (#98).
+  const bannedAt = profile.banned_at;
+  const banned = bannedAt !== null;
   // From profile_stats, not from `list`: the list is capped at 500, and
   // deriving these from it made a heavy eater's lifetime average silently the
   // average of their most recent page.
@@ -459,7 +463,7 @@ export function ProfilePage({
               <CallingCard
                 className="w-full"
                 handle={profile.username}
-                badges={profileTags(profile)}
+                tags={profileTags(profile)}
                 stats={cardStats}
                 slots={[profile.card_slot_1, profile.card_slot_2, profile.card_slot_3]}
                 accent={profile.card_accent}
@@ -492,12 +496,12 @@ export function ProfilePage({
         <TagPicker userId={profile.id} current={profile.tags} onChanged={onChanged} />
       )}
 
-      {banned ? (
+      {bannedAt !== null ? (
         <div className={`${panel} px-6 py-12 text-center`}>
           <p className="m-0 text-[15px] font-semibold">This account is banned</p>
           <p className="mt-2 mb-0 text-sm text-dim">
             Their rankings and invented categories were removed on{' '}
-            {new Date(profile.banned_at!).toLocaleDateString()}.
+            {new Date(bannedAt).toLocaleDateString()}.
           </p>
         </div>
       ) : (

@@ -21,15 +21,25 @@ export const TAG_STYLES: Record<TagKind, { label: string; tone: string }> = {
   runner: { label: 'Runner', tone: 'text-runner' },
 };
 
-/** The fields of a profile that decide which chips sit after its handle. */
-export type ProfileBadges = { is_admin?: boolean; is_supporter?: boolean; tags?: string[] };
+/**
+ * The fields of a profile that decide which chips sit after its handle.
+ *
+ * `tags` admits null because the column is nullable and both callers hand over
+ * a row straight from the generated types; a narrower parameter only moved the
+ * null into a reshape at the call site (#101).
+ */
+export type ProfileTags = {
+  is_admin?: boolean | null;
+  is_supporter?: boolean | null;
+  tags?: string[] | null;
+};
 
 /** The tags a profile wears, in display order: granted first, then flair. */
-export function profileTags(p: ProfileBadges | null): TagKind[] {
+export function profileTags(p: ProfileTags | null): TagKind[] {
   if (!p) return [];
   // Narrowed to SELF_TAGS rather than to TAG_STYLES: people write their own
   // `tags`, so matching against every known chip would be one dropped check
-  // constraint away from letting somebody render their own Supporter badge.
+  // constraint away from letting somebody render their own Supporter tag.
   const flair = (p.tags ?? []).filter((t): t is TagKind =>
     (SELF_TAGS as readonly string[]).includes(t),
   );

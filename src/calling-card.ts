@@ -48,6 +48,10 @@ export function isCardStatKey(value: unknown): value is CardStatKey {
 export const CARD_ACCENT_KEYS = ['clay', 'teal', 'blue', 'violet', 'gold'] as const;
 export type CardAccentKey = (typeof CARD_ACCENT_KEYS)[number];
 
+export function isCardAccentKey(value: unknown): value is CardAccentKey {
+  return typeof value === 'string' && (CARD_ACCENT_KEYS as readonly string[]).includes(value);
+}
+
 /** A named thing with a number attached — the shape the named stats resolve from. */
 export type NamedStat = { name: string; value: number } | null;
 
@@ -219,9 +223,7 @@ export function resolveSlot(key: CardStatKey, stats: CardStats): CardSlot {
  */
 export function resolveAccent(accent: string | null, isSupporter: boolean): CardAccentKey | null {
   if (!isSupporter) return null;
-  return (CARD_ACCENT_KEYS as readonly string[]).includes(accent ?? '')
-    ? (accent as CardAccentKey)
-    : null;
+  return isCardAccentKey(accent) ? accent : null;
 }
 
 const ACCENT_TOKENS: Record<CardAccentKey, string> = {

@@ -431,7 +431,7 @@ function EatersTab({ version }: { version: number }) {
                 <CallingCard
                   handle={e.username}
                   href={profileHref(e.username)}
-                  badges={profileTags({ ...e, tags: e.tags ?? undefined })}
+                  tags={profileTags(e)}
                   stats={cardStatsFrom(e)}
                   slots={[e.card_slot_1, e.card_slot_2, e.card_slot_3]}
                   accent={e.card_accent}
