@@ -143,7 +143,9 @@ function TopFour({
           <p className="m-0 text-xs text-faint">
             {picks.length === 0
               ? 'Pin up to four of your rankings with the ◇ below.'
-              : `${empties} ${empties === 1 ? 'spot' : 'spots'} left.`}
+              : empties === 0
+                ? 'All four spots are taken.'
+                : `${empties} ${empties === 1 ? 'spot' : 'spots'} left.`}
           </p>
         )}
       </div>

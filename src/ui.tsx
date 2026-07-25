@@ -574,7 +574,7 @@ function LikeControl({
             setInvitation(
               viewer === 'out'
                 ? 'Sign in to like this. An email is all it takes.'
-                : 'Likes need an email on your account. Use “Keep account” and this one is yours for good.',
+                : 'Likes need an email on your account. Use “Add email” and this one is yours for good.',
             );
             return;
           }
