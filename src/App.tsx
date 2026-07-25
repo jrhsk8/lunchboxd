@@ -352,6 +352,16 @@ function Site() {
           <a href="#/terms" className="text-xs text-faint underline hover:text-dim">
             Terms of service
           </a>
+          {/* Off-site, so it says where it goes and opens in its own tab —
+              nobody should lose a half-written ranking to a tip jar. */}
+          <a
+            href="https://ko-fi.com/jrhsk8"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-faint underline hover:text-dim"
+          >
+            Buy me a coffee
+          </a>
         </footer>
       </div>
     </LikesProvider>
