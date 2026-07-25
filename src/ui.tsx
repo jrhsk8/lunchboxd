@@ -52,6 +52,18 @@ export const input =
 export const label =
   'flex flex-col gap-1.5 text-[11px] font-semibold tracking-wider text-dim uppercase';
 
+// The small variants. Four controls used to re-type these by hand and one of
+// them had already drifted from `btnPrimary` — losing the disabled cursor — so
+// the variants are named here and composed rather than rewritten (#93).
+export const inputSmall =
+  'rounded-lg border border-edge bg-field px-2 py-1 text-xs text-ink placeholder:text-faint focus:border-clay focus:outline-none';
+export const btnPrimarySmall =
+  'cursor-pointer rounded-lg border border-transparent bg-clay px-3 py-1.5 text-xs font-bold text-field transition-colors hover:bg-clay-hover disabled:cursor-default disabled:opacity-40';
+/** The caption over a small control, as against `label`'s own uppercase row. */
+export const captionSmall = 'text-[10px] tracking-wide text-faint';
+/** The uppercase heading that sits over a group of controls. */
+export const groupLabel = 'text-[11px] font-semibold tracking-wider text-dim uppercase';
+
 /**
  * The one-line italic review quote under a feed headline. Desktop keeps the
  * single ellipsised line (the full text is in the `title` tooltip); phones get

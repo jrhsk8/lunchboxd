@@ -27,6 +27,8 @@ import { plural, TOP_SLOTS } from './text';
 import {
   CategoryLink,
   EmptyState,
+  groupLabel,
+  inputSmall,
   kicker,
   LoadError,
   Loading,
@@ -52,9 +54,7 @@ function Stat({
   return (
     <div className={`${panel} px-4 py-3`}>
       <p className={`m-0 text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
-      <p className="m-0 mt-0.5 text-[11px] font-semibold tracking-wider text-dim uppercase">
-        {label}
-      </p>
+      <p className={`m-0 mt-0.5 ${groupLabel}`}>{label}</p>
     </div>
   );
 }
@@ -206,7 +206,7 @@ function TagPicker({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Your tags</span>
+      <span className={groupLabel}>Your tags</span>
       {SELF_TAGS.map((t) => {
         const on = current.includes(t);
         return (
@@ -292,7 +292,7 @@ function RenameControl({
     // until "Cancel" broke across three lines.
     <span className="flex w-full items-center gap-1.5 sm:w-auto">
       <input
-        className="min-w-0 flex-1 rounded-lg border border-edge bg-field px-2 py-1 text-sm font-normal text-ink placeholder:text-faint focus:border-clay focus:outline-none sm:flex-none"
+        className={`min-w-0 flex-1 text-sm font-normal sm:flex-none ${inputSmall}`}
         placeholder="hotdog_hank"
         maxLength={24}
         value={name}

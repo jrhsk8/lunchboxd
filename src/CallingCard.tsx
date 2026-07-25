@@ -14,7 +14,15 @@ import {
   type CardStats,
 } from './calling-card';
 import { saveCard } from './data';
-import { panel, Tag, type TagKind } from './ui';
+import {
+  btnPrimarySmall,
+  captionSmall,
+  groupLabel,
+  inputSmall,
+  panel,
+  Tag,
+  type TagKind,
+} from './ui';
 
 /**
  * The calling card: three chosen stats under a handle, identical wherever it
@@ -118,8 +126,9 @@ export function CallingCard({
   );
 }
 
-const selectClass =
-  'w-full rounded-lg border border-edge bg-field px-2 py-1.5 text-xs text-ink focus:border-clay focus:outline-none';
+// py-1.5 over the shared py-1: a select carries a disclosure arrow and reads
+// cramped at the input's height.
+const selectClass = `w-full py-1.5 ${inputSmall}`;
 
 /**
  * The studio: picks the three stats, and the accent for supporters.
@@ -167,16 +176,12 @@ export function CardStudio({
 
   return (
     <section className={`${panel} flex flex-col gap-3 p-4`} aria-label="choose your card stats">
-      <p className="m-0 text-[11px] font-semibold tracking-wider text-dim uppercase">
-        Your card shows
-      </p>
+      <p className={`m-0 ${groupLabel}`}>Your card shows</p>
 
       <div className="grid gap-2 sm:grid-cols-3">
         {picks.map((pick, slot) => (
           <label key={slot} className="flex flex-col gap-1">
-            <span className="text-[10px] tracking-wide text-faint">
-              {slot === 0 ? 'Headline' : `Slot ${slot + 1}`}
-            </span>
+            <span className={captionSmall}>{slot === 0 ? 'Headline' : `Slot ${slot + 1}`}</span>
             <select
               className={selectClass}
               value={pick}
@@ -212,7 +217,7 @@ export function CardStudio({
           site, and the colour is the same reward either way. */}
       {colourable && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] tracking-wide text-faint">Card colour</span>
+          <span className={captionSmall}>Card colour</span>
           <button
             type="button"
             aria-pressed={tint === null}
@@ -240,12 +245,7 @@ export function CardStudio({
       )}
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="cursor-pointer rounded-lg border border-transparent bg-clay px-3 py-1.5 text-xs font-bold text-field transition-colors hover:bg-clay-hover disabled:opacity-40"
-          disabled={busy}
-          onClick={save}
-        >
+        <button type="button" className={btnPrimarySmall} disabled={busy} onClick={save}>
           {busy ? 'Saving…' : 'Save card'}
         </button>
         <button

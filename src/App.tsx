@@ -45,6 +45,8 @@ import {
   categoryHref,
   CategoryLink,
   input,
+  inputSmall,
+  groupLabel,
   kicker,
   LikesProvider,
   EmptyState,
@@ -763,7 +765,7 @@ function RankForm({
       </label>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Score</span>
+        <span className={groupLabel}>Score</span>
         {/* Wraps rather than squeezing: below ~360px the stars and the button
             don't share a line, and "Loved it" was breaking mid-phrase. */}
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -1051,9 +1053,7 @@ function CategoryTools({
   if (role === 'inventor') {
     return (
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-edge pt-3">
-        <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">
-          You invented this
-        </span>
+        <span className={groupLabel}>You invented this</span>
         <DeleteCategoryButton category={category} onDeleted={deleted} />
         <span className="text-xs text-faint">
           Only until somebody else ranks here — then it belongs to everyone.
@@ -1064,11 +1064,11 @@ function CategoryTools({
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-edge pt-3">
-      <span className="text-[11px] font-semibold tracking-wider text-dim uppercase">Admin</span>
+      <span className={groupLabel}>Admin</span>
       {renaming ? (
         <>
           <input
-            className="rounded-lg border border-edge bg-field px-2 py-1 text-xs text-ink focus:border-clay focus:outline-none"
+            className={inputSmall}
             maxLength={60}
             value={name}
             autoFocus
@@ -1102,11 +1102,7 @@ function CategoryTools({
           Rename
         </button>
       )}
-      <select
-        className="rounded-lg border border-edge bg-field px-2 py-1 text-xs text-ink focus:border-clay focus:outline-none"
-        value={target}
-        onChange={(e) => setTarget(e.target.value)}
-      >
+      <select className={inputSmall} value={target} onChange={(e) => setTarget(e.target.value)}>
         <option value="">Merge into…</option>
         {stats
           .filter((s) => s.id !== category.id)

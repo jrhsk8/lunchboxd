@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from './supabase';
-import { btnPrimary, input as sharedInput } from './ui';
+import { btnPrimary, input as sharedInput, inputSmall } from './ui';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -116,7 +116,7 @@ export function KeepAccount() {
   return (
     <span className="flex items-center gap-1.5">
       <input
-        className="rounded-lg border border-edge bg-field px-2 py-1 text-xs text-ink placeholder:text-faint focus:border-clay focus:outline-none"
+        className={inputSmall}
         type="email"
         placeholder="you@example.com"
         value={email}
