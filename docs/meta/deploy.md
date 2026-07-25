@@ -10,10 +10,12 @@ Deploy with Wrangler direct upload (keeps deploy a deliberate manual step; the a
 
 ```
 npm run build
-npx wrangler pages deploy dist --project-name lunchboxd
+npm run deploy
 ```
 
-**Node version gotcha (as of 2026-07-24):** this box runs Node v20.13.1 and wrangler isn't a project dependency, so `npx wrangler` fetches the latest, which hard-requires Node ≥ 22 and refuses to start. Either upgrade Node, or pin a version that still supports Node 20: `npx wrangler@3 pages deploy dist --project-name lunchboxd`.
+`deploy` is `wrangler pages deploy dist --project-name lunchboxd`, and **wrangler is a pinned devDependency** — so the invocation lives in one place and can't drift. Run `npm run check` (format, lint, build, test) before deploying.
+
+**History, not a live instruction:** until 2026-07-25 this box ran Node v20.13.1 with wrangler unpinned, so `npx wrangler` fetched the latest, which hard-requires Node ≥ 22 and refused to start; the documented workaround was `npx wrangler@3`. Node is now 24 LTS and wrangler is pinned at ^4, which fixes it from both ends. If you see a Node-version refusal again, check `node -v` before anything else.
 
 Confirm the new asset hash appears in the live page source. Routing is hash-based, so no SPA-fallback / `_redirects` config is needed — every path is served from the root `index.html`.
 
@@ -36,6 +38,25 @@ The stub must forward **`location.search + location.hash`**, and the reason is e
 ## Backend (hosted Supabase, project `kxbteesmfozqzoxzktzv`)
 
 Schema changes go through `supabase/migrations/` and are applied with the Supabase Management API (PAT in `~/.claude.json`, the same one Gambdle's `supabase/deploy-fn.js` uses). Nothing may touch the `public` schema — it belongs to Gambdle.
+
+```
+npm run backup                                        # before anything destructive
+node supabase/apply.js migrations/<file>.sql          # apply one migration
+node supabase/apply.js -e "select count(*) from lunchboxd.rankings"
+npm run types                                         # regenerate src/database.types.ts
+```
+
+There is **no local Supabase stack** (WSL is ruled out), so the hosted database is the only target and migrations land in production the moment they're applied. Back up first, and check destructive statements against live data before running them — `apply.js -e` is there for exactly that.
+
+`npm run types` must follow any migration that changes a table or view: `src/database.types.ts` is generated, and it's what stops a renamed column compiling clean and failing at runtime.
+
+### Backups and restore
+
+`npm run backup` writes every row of `lunchboxd.profiles`, `categories` and `rankings` to a timestamped JSON file in `../lunchboxd-backups/` — **outside the repo**, because it holds every user's handle and every ranking. It is a data dump, not a schema dump: `supabase/migrations/` is the schema, so migrations + a dump is a complete restore.
+
+Why not `pg_dump`: a project-level restore would drag Gambdle back to the same point, so the backup has to be schema-scoped — and this box has no `pg_dump`, `psql` or Supabase CLI binary. If you install one, `pg_dump --schema=lunchboxd` is the better artifact and this script becomes the fallback.
+
+To restore a table, feed the JSON back through `apply.js` as inserts, or `POST` it to PostgREST with the service key. Nothing automates this yet, and nothing schedules the backup — it's a manual step before anything destructive. **Take one before every ban:** `ban_profile` deletes the target's rankings _and_ every category they invented, cascading away everyone else's rankings in those categories, with no undo.
 
 One-time hosted config, already done (redo only if the project is rebuilt):
 

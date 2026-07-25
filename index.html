@@ -15,13 +15,46 @@
         background: #1a1815;
       }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Schibsted Grotesk is served from this origin, not fonts.googleapis.com.
+      The Terms promise "no analytics, no tracking" as a stated product
+      position, and a Google-hosted webfont sends every visitor's IP, UA and
+      referring page to Google before the page renders — the exact thing the
+      Terms say isn't happening, and the pattern German courts have ruled on
+      under GDPR. It also removes a render-blocking third-party round trip.
+      The files are the upstream woff2s (SIL Open Font License).
+    -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      href="/fonts/schibsted-grotesk-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
     <link rel="icon" type="image/svg+xml" href="/brand/lunchboxd-favicon.svg" />
+
+    <!--
+      Static, because hash routes are invisible to a crawler: the fragment
+      never reaches the server, so #/c/pizza and #/u/jack cannot carry their own
+      preview. Per-route document.title is handled in App.tsx; per-route
+      previews would need real paths and prerendering.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Lunchboxd" />
+    <meta property="og:title" content="Lunchboxd: Food, Ranked" />
+    <meta
+      property="og:description"
+      content="Invent arbitrary food categories, rank everything you eat, and watch each category's running average shift with every bite."
+    />
+    <meta property="og:url" content="https://lunchboxd.live/" />
+    <meta property="og:image" content="https://lunchboxd.live/brand/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Lunchboxd — like Letterboxd, but you can eat the subject matter."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>

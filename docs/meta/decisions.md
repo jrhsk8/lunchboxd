@@ -2,6 +2,26 @@
 
 Lightweight log of product, tooling, and repo rulings. Newest first. Grep for the term or date rather than reading whole once this grows. Entries keep their dated headings forever so code and docs can cite them by date.
 
+### 2026-07-25 — Issue-board batch: identity, leaderboard integrity, and four reversals
+
+Worked the whole open issue board in one pass. The rulings worth citing later:
+
+**Handles are case-insensitive, and six accounts were merged to get there.** `profiles.username` became `citext`, matching `categories.name`, which fixes `#/u/Jack` silently rendering "No one by that handle" for `jack` and closes case-variant impersonation. Six real collision pairs blocked the unique index (`Chef`/`CHEF`, `Will`/`will`, `Exa`/`exa` — an admin — `TopOfTheLine`/`topoftheline`, `Zach`/`zach`, `Native`/`native`). Owner-ruled: **merge them, keeping the properly capitalised handle.** The surviving _account_ is the one with the activity, not the one with the nicer capitalisation — four of six pairs had their rankings on the lowercase side, so keeping the prettier profile row would have orphaned the person actually using the site. The dormant account's rankings and invented categories move across and its `auth.users` row is deleted (safe: `auth.users` holds only Lunchboxd users — Gambdle, which shares the project, doesn't use Supabase Auth).
+
+**Handles get a charset, strictly, and eight people were renamed.** `^[A-Za-z0-9_-]+$` plus a reserved list (`admin`, `lunchboxd`, `moderator`, …). Owner-ruled **strict over grandfathering**, so eight existing handles with spaces or punctuation were rewritten (`Hall & Oats` → `Hall_Oats`, `Joel ♊` → `Joel-2`, and so on — the full mapping is in the migration). The threat is confusable and invisible characters next to an Admin badge, and a `NOT VALID` constraint would have left that surface open on exactly the rows that already exercise it.
+
+**The leaderboard is one-person-one-vote with a prior.** `avg_score` now averages each person's scores within a category first, then averages those — so logging ten foods in a category no longer moves it ten times as far as logging one. A unique index on `(user_id, category_id, lower(btrim(food)))` stops the same food being logged twice; six accidental double-submits were removed to create it. The board sorts on a new `weighted_score`, a Bayesian prior of three notional voters at the site mean, so a thirty-second-old category with a single 5.0 sits near the mean until real people agree with it.
+
+**Rankings are editable — reversing the delete-and-re-log ruling.** data-model.md recorded the review as "set at insert only; the update grant stays `hearted`-only". That cost the timestamp, the feed position and the heart to fix a typo in a 2000-character field. The grant widens to `(hearted, review, score, food)`; `user_id` and `category_id` stay ungranted. Owner-ruled **silent**: no `edited_at`, no "edited" marker. Feed order keys off `created_at`, which an edit doesn't touch, so editing can't re-float a ranking.
+
+**Terms is a route, not a modal.** `#/terms`. The one page someone might cite ("We do not collect your data") couldn't be linked or bookmarked, and browser back did nothing. This also retired the modal's missing focus trap and Escape handling rather than fixing them.
+
+**The typeface is self-hosted.** Google Fonts sent every visitor's IP, UA and referring page to Google before first paint, which is precisely what the Terms say isn't happening. The woff2s live in `public/fonts`; the CSP in `public/_headers` has no Google origin in it and shouldn't gain one.
+
+**No CI, because there is no runner.** Prettier, ESLint and Vitest are pinned devDependencies with an `npm run check` that chains them, but the gitea instance has Actions enabled and zero registered runners, so a workflow file would show a permanently pending job on every push. Register `act_runner` and the workflow becomes worth adding.
+
+Deliberately **not** done, and still open: food as a first-class unit (#34) and the search/follows/reports features that depend on it (#35, #36, #37), a captcha on anonymous sign-in (#28), board search (#13), list pagination (the other half of #11), a materialised `category_stats` (#10), soft-delete for `ban_profile` (#33), and reviews as first-class content (#39). #38 (prompting categories you haven't ranked) was closed as won't-do, though #14's datalist removes the "opens on + New category…" default as a side effect.
+
 ### 2026-07-24 — Version history is a footer dialog, not a changelog page
 
 Owner-asked for "versioning and version history on the site", then ruled the scope: **website updates, no changelog page.** So the site carries a semver it shows in the footer (`v0.4.0`) and the history opens as a dialog from that button, mirroring the existing Terms-of-service idiom — no `#/changelog` route, nothing to deep-link. Source of truth is `src/releases.ts`, newest first; `package.json`'s version is bumped by hand to match. Notes are user-facing copy under voice.md and cover only what someone using the site would notice — docs, deploy plumbing and refactors stay out. Retroactive 0.1.0–0.4.0 entries were reconstructed from git history. Component and the import-aliasing trap: docs/app/app-shell.md.
