@@ -1217,7 +1217,7 @@ function CategoryPage({
   onChanged: () => void;
 }) {
   const { stat, error } = useCategoryStat(name, version);
-  const { rankings } = useCategoryRankings(stat?.id ?? null, version);
+  const { rankings, error: rankingsError } = useCategoryRankings(stat?.id ?? null, version);
 
   if (error) return <LoadError className="mx-auto max-w-lg" />;
 
@@ -1264,7 +1264,9 @@ function CategoryPage({
         )}
       </div>
 
-      {rankings === null ? (
+      {rankingsError ? (
+        <LoadError />
+      ) : rankings === null ? (
         <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
       ) : rankings.length === 0 ? (
         <div className={`${panel} px-6 py-12 text-center`}>

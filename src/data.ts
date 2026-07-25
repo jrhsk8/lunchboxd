@@ -395,6 +395,10 @@ export function useCategoryRankings(categoryId: string | null, version: number) 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Clears the error as well as the rows: a failure against the previous
+    // category would otherwise survive into this one and render LoadError over
+    // a category that loaded fine.
+    setError(null);
     if (!supabase || !categoryId) {
       setRankings(null);
       return;
