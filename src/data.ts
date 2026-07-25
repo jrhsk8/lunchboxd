@@ -465,10 +465,11 @@ export function useCardStats(userId: string | null, version: number) {
   const [stats, setStats] = useState<CardStats | null>(null);
 
   useEffect(() => {
-    if (!supabase || !userId) {
-      setStats(null);
-      return;
-    }
+    // Cleared on a person change, not only when the id goes null: walking from
+    // one profile to the next otherwise left the card showing the numbers of
+    // the person you just left, attributed by name to the one you opened.
+    setStats(null);
+    if (!supabase || !userId) return;
     let alive = true;
     supabase
       .from('profile_card_stats')
@@ -734,6 +735,11 @@ export function useNotifications(userId: string | null, version: number) {
       .select(
         'id, created_at, read_at, kind, actor:profiles!notifications_actor_id_fkey(username, is_admin, is_supporter, tags), rankings(food, categories(name))',
       )
+      // RLS is what actually scopes these rows, and it is not going anywhere.
+      // The filter is the second line: without it the query claims to be about
+      // one person and isn't, and the day that policy is widened for a new
+      // `kind`, the client would quietly start reading other people's news.
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(100)
       .then(({ data, error }) => {
@@ -771,6 +777,7 @@ export function useUnreadCount(userId: string | null, version: number) {
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
       .is('read_at', null)
       .then(({ count, error }) => {
         if (!alive) return;
