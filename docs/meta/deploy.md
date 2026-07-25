@@ -9,9 +9,14 @@ Live at <https://lunchboxd.live/>. Two halves: a static frontend on Cloudflare P
 Deploy with Wrangler direct upload (keeps deploy a deliberate manual step; the app repo lives on the local gitea, not GitHub, so there's no Git-connected auto-build):
 
 ```
+npm run check
+git commit
+git push origin main
 npm run build
 npm run deploy
 ```
+
+**The push comes before the deploy, always** — owner-ruled 2026-07-25. A site that is live but unpushed exists only in `dist` and on this box, so anything that goes wrong is debugged against code nobody else can see, and gitea is not a mirror of anything: it is the only remote.
 
 `deploy` is `wrangler pages deploy dist --project-name lunchboxd`, and **wrangler is a pinned devDependency** — so the invocation lives in one place and can't drift. Run `npm run check` (format, lint, build, test) before deploying.
 
