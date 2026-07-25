@@ -101,7 +101,9 @@ Release commits keep the `vX.Y.Z — summary` form, matching `src/releases.ts`. 
 
 ### What the hook checks
 
-`.husky/commit-msg` enforces only what a regex can be right about: subject length and case, no trailing period, the blank line before the body, body line length, and the banned trailers. It does **not** judge tense, register, vocabulary or whether the body explains the why — a check that is wrong occasionally is a check people learn to bypass.
+`.husky/commit-msg` runs `.husky/check-message.mjs`, which enforces only what a regex can be right about: subject length and case, no trailing period, the blank line before the body, body line length, and the banned trailers. Release subjects, merges and fixups are exempt; URLs and fenced blocks are exempt from the wrap rule. It does **not** judge tense, register, vocabulary or whether the body explains the why — a check that is wrong occasionally is a check people learn to bypass. `--no-verify` is the escape hatch, and needing it means the check has a bug.
+
+**There is no pre-commit hook**, deliberately. The gate is `npm run check` and it is a hard rule in `CLAUDE.md`; a hook running some cheaper subset would say a commit passed something it did not.
 
 ## Keeping it true
 

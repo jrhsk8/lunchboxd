@@ -1,0 +1,10 @@
+#!/bin/sh
+# Holds the mechanical half of the commit standard (docs/writing/prose.md).
+#
+# Only what a regex can be right about: length, case, punctuation, layout and
+# the banned trailers. Tense, register, vocabulary and whether the body
+# explains the why are judgement, and a check that is wrong occasionally is a
+# check people learn to bypass. If this refuses a message it shouldn't,
+# `git commit --no-verify` is the escape hatch — and the rule it got wrong is
+# a bug in here, worth an issue.
+exec node .husky/check-message.mjs "$1"
