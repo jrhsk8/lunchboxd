@@ -47,8 +47,10 @@ import {
   input,
   kicker,
   LikesProvider,
+  EmptyState,
   LoadError,
   label,
+  Loading,
   NotificationBell,
   panel,
   ProfileLink,
@@ -404,10 +406,7 @@ function EatersTab({ version }: { version: number }) {
       {error ? (
         <LoadError />
       ) : !loaded ? null : items.length === 0 ? (
-        <div className={`${panel} px-6 py-12 text-center`}>
-          <p className="m-0 text-[15px] font-semibold">Nobody has eaten yet</p>
-          <p className="mt-2 mb-0 text-sm text-dim">The first bite is yours.</p>
-        </div>
+        <EmptyState line="Nobody has eaten yet" sub="The first bite is yours." />
       ) : (
         <>
           <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
@@ -481,19 +480,17 @@ function NotificationsPage({
       <h1 className="m-0 mb-5 text-[28px] font-bold">What people did with your rankings</h1>
 
       {!userId ? (
-        <div className={`${panel} px-6 py-12 text-center`}>
-          <p className="m-0 text-[15px] font-semibold">Nothing to tell you yet</p>
-          <p className="mt-2 mb-0 text-sm text-dim">Sign in and this is where the news lands.</p>
-        </div>
+        <EmptyState
+          line="Nothing to tell you yet"
+          sub="Sign in and this is where the news lands."
+        />
       ) : error ? (
         <LoadError />
       ) : !loaded ? null : items.length === 0 ? (
-        <div className={`${panel} px-6 py-12 text-center`}>
-          <p className="m-0 text-[15px] font-semibold">No news</p>
-          <p className="mt-2 mb-0 text-sm text-dim">
-            When somebody likes one of your rankings, you&rsquo;ll hear about it here.
-          </p>
-        </div>
+        <EmptyState
+          line="No news"
+          sub={<>When somebody likes one of your rankings, you&rsquo;ll hear about it here.</>}
+        />
       ) : (
         <div className={`${panel} px-5 py-2`}>
           <ul className="m-0 flex list-none flex-col p-0">
@@ -842,17 +839,19 @@ function CategoryBoard({
 
   if (error) return <LoadError />;
 
-  if (!loaded) return <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>;
+  if (!loaded) return <Loading />;
 
   if (stats.length === 0) {
     return (
-      <div className={`${panel} px-6 py-12 text-center`}>
-        <p className="m-0 text-[15px] font-semibold">No categories yet</p>
-        <p className="mx-auto mt-2 mb-0 max-w-sm text-sm text-dim">
-          Rank the first food and invent one for everybody. "Handheld Breakfast" is a category.
-          "Things Served in a Bread Bowl" is a category. Go nuts.
-        </p>
-      </div>
+      <EmptyState
+        line="No categories yet"
+        sub={
+          <>
+            Rank the first food and invent one for everybody. "Handheld Breakfast" is a category.
+            "Things Served in a Bread Bowl" is a category. Go nuts.
+          </>
+        }
+      />
     );
   }
 
@@ -1190,8 +1189,7 @@ function CategoryDetail({
       </div>
     );
 
-  if (rankings === null)
-    return <p className="m-0 border-t-2 border-edge px-5 py-4 text-sm text-faint">Loading…</p>;
+  if (rankings === null) return <Loading className="border-t-2 border-edge px-5" pad="py-4" />;
 
   const mine = userId ? rankings.filter((r) => r.user_id === userId) : [];
   const myAvg = mine.length ? mine.reduce((s, r) => s + Number(r.score), 0) / mine.length : null;
@@ -1294,18 +1292,25 @@ function CategoryPage({
 
   if (error) return <LoadError className="mx-auto max-w-lg" />;
 
-  if (stat === undefined)
-    return <p className="m-0 py-16 text-center text-sm text-faint">Loading…</p>;
+  if (stat === undefined) return <Loading pad="py-16" />;
 
   if (stat === null) {
     return (
-      <div className={`${panel} mx-auto max-w-lg px-6 py-12 text-center`}>
-        <p className="m-0 text-[15px] font-semibold">No category by that name</p>
-        <p className="mt-2 mb-4 text-sm break-words text-dim">"{name}" hasn't been invented yet.</p>
-        <a href="#/" className="text-sm font-semibold text-clay hover:text-clay-hover">
-          ← Back to the board
-        </a>
-      </div>
+      <EmptyState
+        className="mx-auto max-w-lg"
+        line="No category by that name"
+        sub={
+          <>
+            "{name}" hasn't been invented yet.
+            <a
+              href="#/"
+              className="mt-3 block text-sm font-semibold text-clay hover:text-clay-hover"
+            >
+              ← Back to the board
+            </a>
+          </>
+        }
+      />
     );
   }
 
@@ -1340,12 +1345,9 @@ function CategoryPage({
       {rankingsError ? (
         <LoadError />
       ) : rankings === null ? (
-        <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
+        <Loading />
       ) : rankings.length === 0 ? (
-        <div className={`${panel} px-6 py-12 text-center`}>
-          <p className="m-0 text-[15px] font-semibold">Nothing ranked yet</p>
-          <p className="mt-2 mb-0 text-sm text-dim">The first bite is yours.</p>
-        </div>
+        <EmptyState line="Nothing ranked yet" sub="The first bite is yours." />
       ) : (
         <div className={`${panel} px-5 py-3`}>
           <RankingRows rankings={rankings} userId={userId} onChanged={onChanged} />
@@ -1404,12 +1406,9 @@ function HashtagPage({ hashtag, version }: { hashtag: string; version: number })
       {error ? (
         <LoadError />
       ) : rows === null ? (
-        <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
+        <Loading />
       ) : rows.length === 0 ? (
-        <div className={`${panel} px-6 py-12 text-center`}>
-          <p className="m-0 text-[15px] font-semibold">No reviews yet</p>
-          <p className="mt-2 mb-0 text-sm break-words text-dim">Nobody has tagged #{clean} yet.</p>
-        </div>
+        <EmptyState line="No reviews yet" sub={<>Nobody has tagged #{clean} yet.</>} />
       ) : (
         <div className={`${panel} px-5 py-3`}>
           <ul className="m-0 flex list-none flex-col p-0">
@@ -1467,15 +1466,10 @@ function ActivityFeed({
 }) {
   if (error) return <LoadError />;
 
-  if (!loaded) return <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>;
+  if (!loaded) return <Loading />;
 
   if (activity.length === 0) {
-    return (
-      <div className={`${panel} px-6 py-12 text-center`}>
-        <p className="m-0 text-[15px] font-semibold">Nothing ranked yet</p>
-        <p className="mt-2 mb-0 text-sm text-dim">The first bite is yours.</p>
-      </div>
-    );
+    return <EmptyState line="Nothing ranked yet" sub="The first bite is yours." />;
   }
 
   return (

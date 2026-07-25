@@ -289,6 +289,45 @@ export function ProfileLink({
 }
 
 /**
+ * The empty state: a bold line saying what isn't there, and a lighter one
+ * inviting you to fix it — the idiom app-shell.md documents and voice.md rules
+ * on.
+ *
+ * This was hand-typed at twelve call sites, with the padding and the text sizes
+ * already drifting between them, so the idiom was documented in two places and
+ * enforced in none (#81). `sub` takes a node rather than a string because two
+ * of the twelve interpolate a hashtag into it.
+ */
+export function EmptyState({
+  line,
+  sub,
+  className = '',
+}: {
+  line: string;
+  sub?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`${panel} px-6 py-12 text-center ${className}`}>
+      <p className="m-0 text-[15px] font-semibold">{line}</p>
+      {sub && <p className="mx-auto mt-2 mb-0 max-w-sm text-sm break-words text-dim">{sub}</p>}
+    </div>
+  );
+}
+
+/**
+ * What a surface shows while its query is in flight.
+ *
+ * Nine copies in three drifted shapes — a centred faint paragraph, a bare
+ * "Loading…", and a null render — so a reader couldn't tell which was
+ * deliberate. One shape now, with `pad` for the two places that want more room:
+ * a whole page rather than a panel (#82).
+ */
+export function Loading({ pad = 'py-8', className = '' }: { pad?: string; className?: string }) {
+  return <p className={`m-0 ${pad} text-center text-sm text-faint ${className}`}>Loading…</p>;
+}
+
+/**
  * What a failed fetch renders instead of an empty state.
  *
  * Every hook used to drop its `error`, so an outage, a dead connection or an

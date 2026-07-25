@@ -26,8 +26,10 @@ import { Stars } from './Stars';
 import { plural, TOP_SLOTS } from './text';
 import {
   CategoryLink,
+  EmptyState,
   kicker,
   LoadError,
+  Loading,
   panel,
   profileHref,
   profileTags,
@@ -385,20 +387,25 @@ export function ProfilePage({
 
   if (error) return <LoadError />;
 
-  if (profile === undefined)
-    return <p className="m-0 py-16 text-center text-sm text-faint">Loading…</p>;
+  if (profile === undefined) return <Loading pad="py-16" />;
 
   if (profile === null) {
     return (
-      <div className={`${panel} mx-auto max-w-lg px-6 py-12 text-center`}>
-        <p className="m-0 text-[15px] font-semibold">No one by that handle</p>
-        <p className="mt-2 mb-4 text-sm break-words text-dim">
-          "{username}" hasn't pulled up a chair here.
-        </p>
-        <a href="#/" className="text-sm font-semibold text-clay hover:text-clay-hover">
-          ← Back to the board
-        </a>
-      </div>
+      <EmptyState
+        className="mx-auto max-w-lg"
+        line="No one by that handle"
+        sub={
+          <>
+            "{username}" hasn't pulled up a chair here.
+            <a
+              href="#/"
+              className="mt-3 block text-sm font-semibold text-clay hover:text-clay-hover"
+            >
+              ← Back to the board
+            </a>
+          </>
+        }
+      />
     );
   }
 
@@ -504,13 +511,15 @@ export function ProfilePage({
       {mayEdit && <TagPicker userId={profile.id} current={profile.tags} onChanged={onChanged} />}
 
       {bannedAt !== null ? (
-        <div className={`${panel} px-6 py-12 text-center`}>
-          <p className="m-0 text-[15px] font-semibold">This account is banned</p>
-          <p className="mt-2 mb-0 text-sm text-dim">
-            Their rankings and invented categories were removed on{' '}
-            {new Date(bannedAt).toLocaleDateString()}.
-          </p>
-        </div>
+        <EmptyState
+          line="This account is banned"
+          sub={
+            <>
+              Their rankings and invented categories were removed on{' '}
+              {new Date(bannedAt).toLocaleDateString()}.
+            </>
+          }
+        />
       ) : (
         <>
           <TopFour picks={top} own={own} onChanged={onChanged} />
@@ -531,14 +540,12 @@ export function ProfilePage({
             <Stat label="Loved" value={lovedCount ? `♥ ${lovedCount}` : '—'} tone="text-gold" />
           </div>
           {rankings === null ? (
-            <p className="m-0 py-8 text-center text-sm text-faint">Loading…</p>
+            <Loading />
           ) : list.length === 0 ? (
-            <div className={`${panel} px-6 py-12 text-center`}>
-              <p className="m-0 text-[15px] font-semibold">Nothing ranked yet</p>
-              <p className="mt-2 mb-0 text-sm text-dim">
-                {own ? 'Your first bite is waiting.' : 'A clean plate so far.'}
-              </p>
-            </div>
+            <EmptyState
+              line="Nothing ranked yet"
+              sub={own ? 'Your first bite is waiting.' : 'A clean plate so far.'}
+            />
           ) : (
             <div className={`${panel} px-5 py-3`}>
               <ul className="m-0 flex list-none flex-col p-0">
