@@ -20,6 +20,21 @@ export type Release = {
 
 export const releases: Release[] = [
   {
+    version: '0.5.0',
+    date: '2026-07-25',
+    notes: [
+      'You can edit a ranking now. Fix a typo, change the score, add the review you forgot — the ranking keeps its place and its heart instead of having to be deleted and logged again.',
+      'Handles no longer care about capitals. "Jack" and "jack" are the same person, links to a profile work whichever way you type it, and nobody can sign up as a near-copy of someone else. A few handles with spaces or punctuation were tidied to fit the new rule.',
+      'Category averages are one score per person per food, and the Top rated board no longer puts a brand-new category with a single five-star ranking above one that fifty people agree on.',
+      'Long reviews have a "more" link, so a review written on a phone can be read on one.',
+      'Picking a category is one field with type-ahead: start typing to join a category that exists, or keep going to invent one.',
+      'Deleting a ranking asks first, and says which one.',
+      'When something goes wrong loading the site, it now says so instead of showing an empty board as though nobody had ranked anything.',
+      'The terms of service has its own page you can link to, and the typeface is served from this site rather than Google — the terms say we do not hand your data to anyone, and that now includes loading a font.',
+      'Scoring works with a keyboard, the stars are bigger and easier to hit on a phone, and screen readers announce scores and the board tabs properly.',
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-07-24',
     notes: [
