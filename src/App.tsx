@@ -35,7 +35,7 @@ import {
   type EaterSort,
   type Ranking,
 } from './data';
-import { categoryToolsFor } from './permissions';
+import { categoryToolsFor, viewerKind } from './permissions';
 import { ProfilePage } from './Profile';
 import { StarInput, Stars } from './Stars';
 import { supabase } from './supabase';
@@ -49,7 +49,6 @@ import {
   LikesProvider,
   LoadError,
   label,
-  type LikeViewer,
   NotificationBell,
   panel,
   ProfileLink,
@@ -98,7 +97,7 @@ function Site() {
   // One query for every row on the page, keyed to the board's refresh counter
   // so a like lights up its own row the moment the refetch lands.
   const myLikes = useMyLikes(session?.user.id ?? null, version);
-  const likeViewer: LikeViewer = !session ? 'out' : session.user.is_anonymous ? 'guest' : 'email';
+  const viewer = viewerKind(session);
   const unread = useUnreadCount(session?.user.id ?? null, version);
   const [tab, setTab] = useState<BoardTab>('categories');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -144,7 +143,7 @@ function Site() {
     // 1320, not 1140: the feed headline ("X ranked FOOD in CATEGORY") is the
     // widest thing on the site and the category — the link out — sits at the
     // end, so it was what got ellipsised. The extra 180px clears it.
-    <LikesProvider liked={myLikes} viewer={likeViewer}>
+    <LikesProvider liked={myLikes} viewer={viewer}>
       <div className="mx-auto max-w-[1320px] p-[clamp(16px,4vw,40px)]">
         <header className="mb-8 flex flex-wrap items-center gap-3 rounded-(--radius-card) border border-edge bg-topbar px-4 py-2.5">
           {/* Brand lockup per public/brand/README.md: 24px on-dark mark, 17px/800
@@ -197,13 +196,13 @@ function Site() {
                     …
                   </span>
                 )}
-                {session.user.is_anonymous && <KeepAccount />}
+                {viewer === 'guest' && <KeepAccount />}
                 <button
                   type="button"
                   className="cursor-pointer border-0 bg-transparent p-0 text-xs whitespace-nowrap text-faint hover:text-ink"
                   onClick={() => {
                     if (
-                      session.user.is_anonymous &&
+                      viewer === 'guest' &&
                       !window.confirm(
                         `Guest accounts can't be recovered: sign out and this account is gone for good. Your rankings stay on the board under ${username ? `"${username}"` : 'your handle'}, but you'll never add to them or pick a handle. Use "Add email" first to keep it. Sign out anyway?`,
                       )
@@ -240,11 +239,7 @@ function Site() {
             version={version}
             userId={session?.user.id ?? null}
             viewerIsAdmin={isAdmin}
-            // From the JWT claim, which stays true until the session refreshes
-            // after an email is confirmed. That only gates the UI — the DB
-            // trigger reads auth.users.is_anonymous and has the final say — and
-            // a confirmation link lands here with a fresh session anyway.
-            viewerIsGuest={session?.user.is_anonymous ?? false}
+            viewerIsGuest={viewer === 'guest'}
             onChanged={refresh}
             onRenamed={() => {
               refresh();

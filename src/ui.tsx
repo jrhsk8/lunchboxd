@@ -31,6 +31,7 @@ import {
   type Ranking,
 } from './data';
 import { StarInput, Stars } from './Stars';
+import type { ViewerKind } from './permissions';
 import { parseHash, plural, reviewPieces, timeAgo, type Route } from './text';
 import { profileTags, TAG_STYLES, type ProfileTags, type TagKind } from './tags';
 
@@ -459,15 +460,11 @@ export function RankingRow({
  * and `ProfilePage`: every row on every surface needs the same two answers,
  * and `useMyLikes` is one query for the whole page (see data.ts).
  *
- * `viewer` is what the UI *offers*; the database has the final say. The guest
- * check reads the JWT's `is_anonymous`, which stays true until the session
- * refreshes after an email is confirmed — so a just-confirmed account can be
- * offered the invitation it no longer needs. Harmless in that direction: the
- * insert policy calls `caller_has_email()` over `auth.users` and lets them
- * through. Never invert this to *grant* on the claim.
+ * `viewer` is what the UI *offers*; the database has the final say. What the
+ * three kinds mean, and the one direction the guest claim goes stale in, is
+ * `viewerKind` in permissions.ts.
  */
-export type LikeViewer = 'out' | 'guest' | 'email';
-const LikesContext = createContext<{ liked: Set<string>; viewer: LikeViewer }>({
+const LikesContext = createContext<{ liked: Set<string>; viewer: ViewerKind }>({
   liked: new Set(),
   viewer: 'out',
 });
@@ -478,7 +475,7 @@ export function LikesProvider({
   children,
 }: {
   liked: Set<string>;
-  viewer: LikeViewer;
+  viewer: ViewerKind;
   children: ReactNode;
 }) {
   const value = useMemo(() => ({ liked, viewer }), [liked, viewer]);

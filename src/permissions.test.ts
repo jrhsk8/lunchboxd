@@ -5,6 +5,7 @@ import {
   isOwnProfile,
   mayBan,
   mayEditOwnProfile,
+  viewerKind,
   type CategorySubject,
   type ProfileSubject,
   type Viewer,
@@ -100,5 +101,19 @@ describe('categoryToolsFor', () => {
   it('offers nothing to a stranger or to a signed-out visitor', () => {
     expect(categoryToolsFor(category({ created_by: THEM }), viewer())).toBe(null);
     expect(categoryToolsFor(category({ created_by: null }), viewer({ userId: null }))).toBe(null);
+  });
+});
+
+describe('viewerKind', () => {
+  it('reads the three states off the session', () => {
+    expect(viewerKind(null)).toBe('out');
+    expect(viewerKind({ user: { is_anonymous: true } })).toBe('guest');
+    expect(viewerKind({ user: { is_anonymous: false } })).toBe('email');
+  });
+
+  it('treats a missing claim as an email account, not a guest', () => {
+    // The claim is absent on an ordinary email session; reading it as a guest
+    // would offer "Keep account" to somebody who already has one.
+    expect(viewerKind({ user: {} })).toBe('email');
   });
 });

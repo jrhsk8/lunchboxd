@@ -12,6 +12,28 @@
  * `calling-card.ts` are.
  */
 
+/** What the viewer is, for every control that offers different things to each. */
+export type ViewerKind = 'out' | 'guest' | 'email';
+
+/**
+ * Signed out, eating as a guest, or holding an email — the one place the JWT's
+ * `is_anonymous` claim is read.
+ *
+ * **The claim goes stale in one direction**: it stays true until the session
+ * refreshes after an email is confirmed, so a just-confirmed account can be
+ * offered the invitation it no longer needs. Harmless that way round — the
+ * insert policy calls `caller_has_email()` over `auth.users` and lets them
+ * through, and a confirmation link lands with a fresh session anyway. Never
+ * invert it to *grant* something on the claim (#90).
+ *
+ * Takes the session structurally rather than importing supabase-js, so this
+ * module stays free of the client and its rules stay testable.
+ */
+export function viewerKind(session: { user: { is_anonymous?: boolean } } | null): ViewerKind {
+  if (!session) return 'out';
+  return session.user.is_anonymous ? 'guest' : 'email';
+}
+
 /** A profile, as far as deciding what its page offers is concerned. */
 export type ProfileSubject = {
   id: string;
