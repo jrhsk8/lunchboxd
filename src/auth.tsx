@@ -45,7 +45,11 @@ export function useAuth() {
         }
         await new Promise((r) => setTimeout(r, 350));
       }
-      if (alive) setUsername((user.user_metadata?.username as string) ?? 'eater');
+      // Deliberately gives up rather than guessing. The old fallback used the
+      // handle asked for at signup, or the literal 'eater' — and the header
+      // wraps whatever this returns in a link to that profile, so a guess sent
+      // people to a stranger's page or to one that doesn't exist. Null renders
+      // the header's placeholder, which is the honest answer.
     })();
     return () => {
       alive = false;
