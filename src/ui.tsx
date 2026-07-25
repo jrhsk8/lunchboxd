@@ -1,3 +1,16 @@
+/**
+ * The shared surface: the ranking row, the marks people leave on it, the chips
+ * after a handle, the links between pages, and the routing hook underneath.
+ *
+ * The test for whether something belongs here is a second home. The row exists
+ * because the same forty lines of mobile choreography lived three times and
+ * every fix had to be made three times; the marks and the links are here for
+ * the same reason. Anything with one home stays in the file that draws it.
+ *
+ * The pure helpers live in `src/text.ts` instead, so they can be tested without
+ * React or the Supabase client. See app-shell.md § Component map.
+ */
+
 import {
   createContext,
   useContext,
@@ -142,7 +155,7 @@ export function hashtagHref(hashtag: string) {
   return `#/t/${encodeURIComponent(hashtag.toLowerCase())}`;
 }
 
-/** Renders review text with #hashtags turned into links to their tag page. */
+/** Renders review text with #hashtags turned into links to their own page. */
 export function ReviewText({ text }: { text: string }) {
   const nodes: ReactNode[] = [];
   let last = 0;
@@ -228,7 +241,8 @@ export function CategoryLink({ name, className = '' }: { name: string; className
 }
 
 /**
- * Username tags, maxout-style: one hue drives text, dot, border, and fill of
+ * The flair chips that sit after a handle, maxout-style: one hue drives text,
+ * dot, border, and fill of
  * a small chip. `admin` and `supporter` are granted in SQL and live in their
  * own columns; the rest are self-service flair from the fixed roster in
  * SELF_TAGS. Someone can wear both kinds at once — the granted ones don't
@@ -262,8 +276,8 @@ export function Tag({ kind, size = 10 }: { kind: TagKind; size?: number }) {
 /** The tags a profile wears, in display order: granted first, then flair. */
 export function profileTags(p: ProfileBadges | null): TagKind[] {
   if (!p) return [];
-  // Narrowed to SELF_TAGS rather than to TAG_STYLES: `tags` is a user-writable
-  // column, so matching it against every known chip would be one dropped check
+  // Narrowed to SELF_TAGS rather than to TAG_STYLES: people write their own
+  // `tags`, so matching against every known chip would be one dropped check
   // constraint away from letting somebody render their own Supporter badge.
   const flair = (p.tags ?? []).filter((t): t is TagKind =>
     (SELF_TAGS as readonly string[]).includes(t),

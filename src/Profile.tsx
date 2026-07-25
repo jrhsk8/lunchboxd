@@ -1,3 +1,14 @@
+/**
+ * One eater's page: the header and its calling card, the top four, the flair
+ * picker, and the owner's and admin's controls over all of it.
+ *
+ * Its own file rather than a page in `src/App.tsx` because almost none of it is
+ * reusable — the rename box, the ban hammer, the pin controls and the studio
+ * are all "only on your own profile, or only for an admin", and that condition
+ * is what the file is. The parts that other pages do share (the ranking row,
+ * the tags, the card) are imported.
+ */
+
 import { useState } from 'react';
 
 import { CallingCard, CardStudio } from './CallingCard';
@@ -44,7 +55,6 @@ function Stat({
   );
 }
 
-/** One pinned ranking, as a card in the top four. */
 function PinnedRanking({
   ranking,
   own,
@@ -204,7 +214,7 @@ function TagPicker({
 
 /**
  * Inline rename on your own profile — the escape hatch for anyone stuck with
- * a generated eater-* handle. On success the page routes to the new handle
+ * a serial guest-* handle. On success the page routes to the new handle
  * and `onRenamed` refreshes the cached header name.
  */
 function RenameControl({
@@ -381,7 +391,7 @@ export function ProfilePage({
   const own = userId === profile.id;
   const banned = profile.banned_at !== null;
   // From profile_stats, not from `list`: the list is capped at 500, and
-  // deriving these from it made a heavy user's lifetime average silently the
+  // deriving these from it made a heavy eater's lifetime average silently the
   // average of their most recent page.
   const avg = stats?.avg_score == null ? null : Number(stats.avg_score);
   const rankingCount = stats?.ranking_count ?? list.length;

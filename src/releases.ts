@@ -7,7 +7,7 @@
  * source of truth for the version, kept in step with `package.json` by hand,
  * since nothing derives one from the other.
  *
- * Notes read as user-facing copy and follow docs/writing/voice.md: plain
+ * Notes read as user-facing copy and follow `docs/writing/voice.md`: plain
  * sentences, the site's own vocabulary (ranking, category, handle, loved it),
  * no exclamation points. Changes nobody outside the repo can see — docs, deploy
  * plumbing, refactors — don't belong here.

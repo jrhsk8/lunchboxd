@@ -42,8 +42,9 @@ const STEPS = Array.from({ length: 10 }, (_, i) => (i + 1) / 2);
  * Two things the invisible-overlay trick costs, both fixed here:
  *
  * - The zones are `opacity-0`, which hides the focus outline along with
- *   everything else, so a sighted keyboard user landed on a control with no
- *   indication it had focus. The ring goes on the wrapper via `:has()`, and the
+ *   everything else, so somebody sighted navigating by keyboard landed on a
+ *   control with no indication it had focus. The ring goes on the wrapper via
+ *   `:has()`, and the
  *   fill previews the focused step.
  * - It's a radiogroup, so it takes a roving tabindex and arrow keys: one tab
  *   stop, Left/Right by a half star, Home/End for the ends. Ten tab stops to

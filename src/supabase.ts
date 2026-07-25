@@ -10,7 +10,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
  *
  * `Database` is generated from the live schema, so a renamed column or a
  * dropped select field is a type error rather than a runtime surprise.
- * Regenerate after every migration — see docs/meta/deploy.md.
+ * Regenerate after every migration — see `docs/meta/deploy.md`.
  */
 export const supabase: SupabaseClient<Database, 'lunchboxd'> | null =
   url && anonKey

@@ -30,12 +30,13 @@ export function timeAgo(iso: string, now: number = Date.now()) {
 /**
  * A hashtag: '#' + word chars, only when not glued to a preceding word char
  * (so "a#b" and URL fragments like "x#frag" don't count). Capture group 1 is
- * the leading boundary char (kept as text), group 2 is the tag. No lookbehind,
+ * the leading boundary char (kept as text), group 2 is the hashtag. No lookbehind,
  * for older-Safari safety.
  *
- * These boundary rules are duplicated server-side by useHashtagReviews' refinement
- * regex; both are covered by ui.test.ts, because a drift between them shows up
- * as a tag page listing reviews that don't carry the tag.
+ * These boundary rules are duplicated by `useHashtagReviews`, which refines the
+ * database's substring prefilter with the same word boundary; both are covered
+ * by `src/text.test.ts`, because a drift between them shows up as a hashtag page
+ * listing reviews that don't carry the hashtag.
  */
 export const HASHTAG_RE = /(^|[^A-Za-z0-9_])#([A-Za-z0-9_]+)/g;
 
@@ -61,10 +62,10 @@ export type WriteError = { code?: string; message: string };
 /**
  * What a rejected write says to the person who made it.
  *
- * The rule this exists to enforce: **a Postgres message never reaches a user.**
+ * The rule this exists to enforce: **a Postgres message never reaches a person.**
  * Every write used to end `: error.message`, which was fine while every failure
  * anyone had thought of was mapped — and then the one-ranking-per-food index
- * landed and a user was shown `duplicate key value violates unique constraint
+ * landed and somebody was shown `duplicate key value violates unique constraint
  * "rankings_one_per_food_idx"`. Mapping that one string fixes that one string;
  * the next constraint would have done it again. So the fallback is now a plain
  * sentence, and the raw text goes to the console for whoever is debugging.

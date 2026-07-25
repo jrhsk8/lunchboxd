@@ -1,3 +1,15 @@
+/**
+ * Every query and every write, as hooks and plain async functions. Nothing in
+ * here renders, and nothing outside here talks to Supabase.
+ *
+ * The two rules the file exists to keep. **Errors are returned, never dropped**
+ * — a fetch that swallows its error renders emptiness as fact, which is what
+ * `LoadError` and `writeError` exist to prevent. And **the board's `version`
+ * counter is the refresh mechanism**: realtime, tab focus and every successful
+ * write bump it, and every hook takes it as an argument so one bump refetches
+ * whatever is on screen. See data-model.md before changing either.
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 
 import type { CardStats } from './calling-card';
@@ -76,7 +88,7 @@ export type ProfileRanking = Activity & { category_id: string };
 
 /**
  * A person's totals, computed server-side. The ranking list below them is
- * capped, and deriving these from that array made a heavy user's "lifetime
+ * capped, and deriving these from that array made a heavy eater's "lifetime
  * average" silently the average of their most recent page.
  */
 export type ProfileStats = {
@@ -92,7 +104,7 @@ export type ProfileStats = {
  * Every fetch used to destructure `data` and drop `error`, so a Supabase
  * outage, an expired PostgREST schema cache, or a dead connection all rendered
  * as "no categories yet" — the site reporting emptiness as fact. These strings
- * are deliberately vague about the cause (the user can't act on PGRST106) and
+ * are deliberately vague about the cause (nobody can act on PGRST106) and
  * specific about what failed.
  */
 const FETCH_FAILED = "Couldn't reach the kitchen";
@@ -333,7 +345,7 @@ export function useCategoryStat(name: string, version: number) {
  * case-insensitive substring prefilter (`ilike %#tag%`, backed by the trigram
  * index); the client then refines with a word-boundary regex so "#tag" doesn't
  * match "#tagged". That boundary rule must stay in step with HASHTAG_RE in
- * ui.tsx — both are covered by src/ui.test.ts.
+ * `src/text.ts` — both are covered by `src/text.test.ts`.
  */
 export function useHashtagReviews(hashtag: string, version: number) {
   const [rows, setRows] = useState<Activity[] | null>(null);

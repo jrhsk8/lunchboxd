@@ -1,3 +1,16 @@
+/**
+ * The shell and every page that isn't a profile: the header, the board and its
+ * three tabs, the category and hashtag pages, notifications, and the terms.
+ *
+ * One file rather than a directory of pages, because routing is a hash and a
+ * switch (`useRoute` in `src/ui.tsx`) rather than a router — there is nothing
+ * for a page module to register with, and a page here is a function that gets
+ * rendered when the hash says so. What does live elsewhere is anything with a
+ * second home: the row, the marks and the chips in `src/ui.tsx`, the profile in
+ * `src/Profile.tsx`, every query in `src/data.ts`. See app-shell.md § Component
+ * map before adding a page.
+ */
+
 import { useEffect, useState } from 'react';
 
 import { KeepAccount, SignInCard, useAuth } from './auth';
