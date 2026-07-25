@@ -25,6 +25,7 @@ One word per concept, binding on every surface: comments, docs, commit messages,
 | **board**                   | The site's home surface and its three tabs — categories, activity, eaters.                                               | "home", "dashboard", "landing"                                      |
 | **feed**                    | A reverse-chronological list of rankings, wherever it appears.                                                           | "stream", "timeline", "history"                                     |
 | **tag**                     | Flair on a profile: supporter, admin, runner, peloton.                                                                   | "badge", "role", "flair" as a noun                                  |
+| **hashtag**                 | The `#word` a review can carry, linking to the page of every review sharing it. Never shortened to "tag".                | "tag" for this, "topic", "label"                                    |
 | **notification**            | A told-you-about-it row, owned by the like that caused it.                                                               | "alert", "ping", "inbox item"                                       |
 | **guest**                   | An anonymous session with a serial handle.                                                                               | "anon", "temp user"                                                 |
 | **supporter**               | Someone carrying the supporter tag.                                                                                      | "subscriber", "patron", "premium"                                   |
@@ -36,6 +37,8 @@ One word per concept, binding on every surface: comments, docs, commit messages,
 **loved it / like.** Two marks with two owners: the heart is yours on your own ranking, the like is somebody else's on yours. The UI already refuses to blur them — the like control carries no glyph precisely because the gold heart owns that shape. See `decisions.md` 2026-07-25.
 
 **eater / person / user.** _User_ is dead in prose. **Eater** where the person has ranked, **person** where they may not have. A signup that never ranked is a person with a profile, not an eater — which is exactly why the `eaters` view filters on `ranking_count > 0`.
+
+**tag / hashtag.** Two things, and for a while one word. A tag is flair on a profile; a hashtag is a `#word` inside a review. Both readings were load-bearing in the code — `TagPicker` sets flair while `TagPage` listed hashtags — so the fix was a second term rather than a winner. Never write "tag" for a hashtag.
 
 **board / feed / activity.** All three survive because they name different things: the board is the surface, activity is one of its tabs, and the feed is the list of rankings that tab renders.
 

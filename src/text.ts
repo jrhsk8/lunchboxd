@@ -33,7 +33,7 @@ export function timeAgo(iso: string, now: number = Date.now()) {
  * the leading boundary char (kept as text), group 2 is the tag. No lookbehind,
  * for older-Safari safety.
  *
- * These boundary rules are duplicated server-side by useTagReviews' refinement
+ * These boundary rules are duplicated server-side by useHashtagReviews' refinement
  * regex; both are covered by ui.test.ts, because a drift between them shows up
  * as a tag page listing reviews that don't carry the tag.
  */

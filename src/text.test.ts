@@ -10,7 +10,7 @@ import { hashtagsIn, nextTopSlot, PG, timeAgo, writeError } from './text';
  */
 
 describe('hashtag matching', () => {
-  // These rules are shared with the server-side prefilter in useTagReviews —
+  // These rules are shared with the server-side prefilter in useHashtagReviews —
   // the DB does `ilike %#tag%` and the client refines with the same boundary,
   // so if one drifts the tag page shows rows the other wouldn't.
   it('finds a plain hashtag', () => {

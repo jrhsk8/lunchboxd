@@ -335,15 +335,15 @@ export function useCategoryStat(name: string, version: number) {
  * match "#tagged". That boundary rule must stay in step with HASHTAG_RE in
  * ui.tsx — both are covered by src/ui.test.ts.
  */
-export function useTagReviews(tag: string, version: number) {
+export function useHashtagReviews(hashtag: string, version: number) {
   const [rows, setRows] = useState<Activity[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const clean = tag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const clean = hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
 
   useEffect(() => {
     setRows(null);
     setError(null);
-  }, [tag]);
+  }, [hashtag]);
 
   useEffect(() => {
     if (!supabase) return;

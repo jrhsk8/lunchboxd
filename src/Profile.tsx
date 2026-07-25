@@ -45,7 +45,7 @@ function Stat({
 }
 
 /** One pinned ranking, as a card in the top four. */
-function TopCard({
+function PinnedRanking({
   ranking,
   own,
   onChanged,
@@ -139,7 +139,7 @@ function TopFour({
       </div>
       <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-4">
         {picks.map((r) => (
-          <TopCard key={r.id} ranking={r} own={own} onChanged={onChanged} />
+          <PinnedRanking key={r.id} ranking={r} own={own} onChanged={onChanged} />
         ))}
         {own &&
           Array.from({ length: empties }, (_, i) => (

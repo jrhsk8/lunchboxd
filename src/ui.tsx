@@ -55,7 +55,7 @@ export type Route =
   | { page: 'home' }
   | { page: 'profile'; username: string }
   | { page: 'category'; name: string }
-  | { page: 'tag'; tag: string }
+  | { page: 'hashtag'; hashtag: string }
   | { page: 'notifications' }
   | { page: 'terms' };
 
@@ -80,7 +80,7 @@ export function useRoute(): Route {
       const value = decodeURIComponent(m[2]);
       if (m[1] === 'u') return { page: 'profile', username: value };
       if (m[1] === 'c') return { page: 'category', name: value };
-      return { page: 'tag', tag: value };
+      return { page: 'hashtag', hashtag: value };
     } catch {
       // Malformed percent-encoding in a hand-typed URL: fall through to home.
     }
@@ -138,8 +138,8 @@ export function categoryHref(name: string) {
   return `#/c/${encodeURIComponent(name)}`;
 }
 
-export function tagHref(tag: string) {
-  return `#/t/${encodeURIComponent(tag.toLowerCase())}`;
+export function hashtagHref(hashtag: string) {
+  return `#/t/${encodeURIComponent(hashtag.toLowerCase())}`;
 }
 
 /** Renders review text with #hashtags turned into links to their tag page. */
@@ -153,7 +153,7 @@ export function ReviewText({ text }: { text: string }) {
     nodes.push(
       <a
         key={tagStart}
-        href={tagHref(tag)}
+        href={hashtagHref(tag)}
         className="font-semibold text-clay hover:underline"
         onClick={(e) => e.stopPropagation()}
       >
@@ -277,7 +277,7 @@ export function profileTags(p: ProfileBadges | null): TagKind[] {
 /** The fields of a profile that decide which chips sit after its handle. */
 type ProfileBadges = { is_admin?: boolean; is_supporter?: boolean; tags?: string[] };
 
-export function UserLink({
+export function ProfileLink({
   username,
   className = '',
   meta = null,

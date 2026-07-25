@@ -14,9 +14,9 @@ import {
   useCategoryRankings,
   useCategoryStat,
   useEaters,
+  useHashtagReviews,
   useMyLikes,
   useNotifications,
-  useTagReviews,
   useUnreadCount,
   type CategoryStat,
   type EaterSort,
@@ -37,6 +37,7 @@ import {
   type LikeViewer,
   NotificationBell,
   panel,
+  ProfileLink,
   profileHref,
   profileTags,
   RankingRow,
@@ -44,7 +45,6 @@ import {
   scoreTone,
   Tag,
   timeAgo,
-  UserLink,
   useRoute,
 } from './ui';
 
@@ -93,8 +93,8 @@ function Site() {
       ? `u/${route.username}`
       : route.page === 'category'
         ? `c/${route.name}`
-        : route.page === 'tag'
-          ? `t/${route.tag}`
+        : route.page === 'hashtag'
+          ? `t/${route.hashtag}`
           : route.page === 'terms'
             ? 'terms'
             : route.page === 'notifications'
@@ -114,8 +114,8 @@ function Site() {
         ? `${route.username} — Lunchboxd`
         : route.page === 'category'
           ? `${route.name} — Lunchboxd`
-          : route.page === 'tag'
-            ? `#${route.tag} — Lunchboxd`
+          : route.page === 'hashtag'
+            ? `#${route.hashtag} — Lunchboxd`
             : route.page === 'terms'
               ? 'Terms of service — Lunchboxd'
               : route.page === 'notifications'
@@ -208,8 +208,8 @@ function Site() {
           <Terms />
         ) : route.page === 'notifications' ? (
           <NotificationsPage userId={session?.user.id ?? null} version={version} onRead={refresh} />
-        ) : route.page === 'tag' ? (
-          <TagPage tag={route.tag} version={version} />
+        ) : route.page === 'hashtag' ? (
+          <HashtagPage hashtag={route.hashtag} version={version} />
         ) : route.page === 'category' ? (
           <CategoryPage
             name={route.name}
@@ -513,7 +513,7 @@ function NotificationsPage({
                 {/* break-words throughout: handles run to 24 characters and
                     foods to 120, either of which can arrive as one token. */}
                 <span className="min-w-0 flex-1 break-words">
-                  <UserLink username={n.actor?.username ?? null} meta={n.actor} />{' '}
+                  <ProfileLink username={n.actor?.username ?? null} meta={n.actor} />{' '}
                   <span className="text-dim">liked your</span>{' '}
                   <span className="font-semibold">{n.rankings?.food ?? 'ranking'}</span>
                   {n.rankings?.categories && (
@@ -1173,7 +1173,7 @@ function RankingRows({
                not a routine cut. Desktop keeps the single truncated line. */
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:flex-nowrap">
               <span className="shrink-0 font-medium">
-                <UserLink username={r.profiles?.username ?? null} meta={r.profiles} />
+                <ProfileLink username={r.profiles?.username ?? null} meta={r.profiles} />
                 {userId === r.user_id && ' (you)'}
               </span>
               <span className="line-clamp-3 min-w-0 text-xs break-words text-faint sm:block sm:overflow-hidden sm:text-ellipsis sm:whitespace-nowrap">
@@ -1292,9 +1292,9 @@ function CategoryPage({
 }
 
 /** Every review carrying a given #hashtag, newest first. */
-function TagPage({ tag, version }: { tag: string; version: number }) {
-  const clean = tag.toLowerCase().replace(/[^a-z0-9_]/g, '');
-  const { rows, error } = useTagReviews(tag, version);
+function HashtagPage({ hashtag, version }: { hashtag: string; version: number }) {
+  const clean = hashtag.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const { rows, error } = useHashtagReviews(clean, version);
 
   return (
     <div className="flex flex-col gap-6">
@@ -1334,7 +1334,7 @@ function TagPage({ tag, version }: { tag: string; version: number }) {
                   "<ReviewText text={r.review ?? ''} />"
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-faint">
-                  <UserLink
+                  <ProfileLink
                     username={r.profiles?.username ?? null}
                     className="font-semibold"
                     meta={r.profiles}
@@ -1404,7 +1404,7 @@ function ActivityFeed({
               /* Wraps on phones: truncated to one line the sentence always lost
                  its tail — the category, which is the link out of the feed. */
               <span className="block break-words sm:truncate">
-                <UserLink
+                <ProfileLink
                   username={a.profiles?.username ?? null}
                   className="font-bold"
                   meta={a.profiles}
