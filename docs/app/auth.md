@@ -1,6 +1,6 @@
 # Auth model
 
-How people get an identity on Lunchboxd and what that identity can touch. Sourced from the code (`src/auth.tsx`, `supabase/migrations/`), authoritative as of 2026-07-23.
+How people get an identity on Lunchboxd and what that identity can touch. Sourced from the code (`src/auth.tsx`, `supabase/migrations/`), authoritative as of 2026-07-26.
 
 ## Session kinds
 

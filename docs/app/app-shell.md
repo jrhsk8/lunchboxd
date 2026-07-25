@@ -1,6 +1,6 @@
 # App shell — pages, routing, design language
 
-The single-page structure, how routing works, and the visual idioms every new surface should reuse. Sourced from `src/`, authoritative as of 2026-07-23.
+The single-page structure, how routing works, and the visual idioms every new surface should reuse. Sourced from `src/`, authoritative as of 2026-07-26.
 
 ## Pages and routing
 
@@ -19,9 +19,10 @@ Hash routing is a deliberate choice, not a shortcut: the site is a static build 
 
 ## Component map
 
-- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (one datalist-backed category field — type-ahead over existing names, and typing a new one invents it; there is no separate "new category" mode), `CategoryBoard`/`CategoryDetail`, `CategoryPage`, `HashtagPage`, `RankingRows` (the row list shared by panel and page), `CategoryTools` + `categoryToolsFor` + `DeleteCategoryButton` (admin rename / merge-into / delete, or the inventor's delete alone, in both the panel and the page), `ActivityFeed`, `Terms`, `WhatsNew`.
+- `App.tsx` — `Site` (shell + route dispatch), `RankForm` (one datalist-backed category field — type-ahead over existing names, and typing a new one invents it; there is no separate "new category" mode), `CategoryBoard`/`CategoryDetail`, `CategoryPage`, `HashtagPage`, `RankingRows` (the row list shared by panel and page), `CategoryTools` + `categoryToolsFor` + `DeleteCategoryButton` (admin rename / merge-into / delete, or the inventor's delete alone, in both the panel and the page), `ActivityFeed`, `NotificationsPage`, `EatersTab`, `Terms`.
   - `categoryToolsFor` decides which set a viewer gets and is the client half of `delete_category`'s rule — call it, don't re-derive it, and note that both call sites need it: the page also uses it to decide whether to draw the panel the tools sit in.
 - **`EatersTab`** (App.tsx) — the third board tab: everyone who has ever ranked, drawn as their calling card, 2 across on desktop and 1 on a phone. **A tab, not a route** — owner-ruled 2026-07-25 (#44), knowing the cost: it can't be linked to, and a card list is the kind of thing people link. It's the card's second home, and the only place the three stats somebody chose about themselves are visible to anyone else — which is why it's cards rather than the denser compact rows the board idiom would suggest. Four sort settings (Recent — the default — Rankings, Likes, A–Z) in a **radiogroup**, not a tablist, with short labels so all four fit at 320px. 24 at a time behind a "Show more (N to go)"; the sort and the paging both happen in the database (§ `eaters` view in data-model.md), so the cap is a real `range` rather than a slice of everybody. Changing the sort resets the depth: a new ordering is a new list.
+- `CallingCard.tsx` — `CallingCard` (the three-stat panel: the profile header and every row of the Eaters tab) and `CardStudio` (the inline picker for the three slots and, for supporters, the accent).
 - `Profile.tsx` — `ProfilePage` (stats + history; own-view gets edit controls), `TopFour`/`PinnedRanking` (the pinned four, above the stat tiles; the empty dashed spots appear on your own profile only, where they're the instruction).
 - `auth.tsx` — `useAuth`, `SignInCard` (guest-first), `KeepAccount`.
 - `Stars.tsx` — `Stars` (fractional display), `StarInput` (half-star hit zones).

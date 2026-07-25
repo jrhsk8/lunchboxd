@@ -1,7 +1,8 @@
 /**
- * The pure text/time helpers, kept apart from ui.tsx so they can be tested
- * without dragging in React or the Supabase client (which reads import.meta.env
- * at module load).
+ * The pure text/time helpers, kept apart from ui.tsx because a rule deserves a
+ * home of its own: everything here is a decision with edge cases — a boundary,
+ * a fallback, a message somebody reads — and each one is pinned by a test in
+ * text.test.ts rather than inferred from the component that calls it.
  */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

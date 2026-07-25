@@ -97,5 +97,5 @@ export const releases: Release[] = [
   },
 ];
 
-/** The version the site is running — what the footer shows. */
+/** The version the site is running. Nothing renders it; see the header above. */
 export const version = releases[0].version;

@@ -38,7 +38,7 @@ One word per concept, binding on every surface: comments, docs, commit messages,
 
 **eater / person / user.** _User_ is dead in prose. **Eater** where the person has ranked, **person** where they may not have. A signup that never ranked is a person with a profile, not an eater — which is exactly why the `eaters` view filters on `ranking_count > 0`.
 
-**tag / hashtag.** Two things, and for a while one word. A tag is flair on a profile; a hashtag is a `#word` inside a review. Both readings were load-bearing in the code — `TagPicker` sets flair while `TagPage` listed hashtags — so the fix was a second term rather than a winner. Never write "tag" for a hashtag.
+**tag / hashtag.** Two things, and for a while one word. A tag is flair on a profile; a hashtag is a `#word` inside a review. Both readings were load-bearing in the code — `TagPicker` sets flair while the hashtag page was called `TagPage` — so the fix was a second term rather than a winner. Never write "tag" for a hashtag.
 
 **board / feed / activity.** All three survive because they name different things: the board is the surface, activity is one of its tabs, and the feed is the list of rankings that tab renders.
 

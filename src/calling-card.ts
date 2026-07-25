@@ -6,7 +6,8 @@
  *
  * No React and no Supabase import, so the profile header, the Eaters tab and
  * the studio preview all read the same numbers the same way, and every rule is
- * testable without a browser — the same reason `text.ts` exists.
+ * pinned by a test rather than by the component that happens to call it — the
+ * same reason `text.ts` and `tags.ts` exist.
  *
  * Ported from maxout.art's `apps/play/src/identity/calling-card.ts`, with one
  * deliberate departure: half of this vocabulary resolves to a **name** rather

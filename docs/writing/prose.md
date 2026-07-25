@@ -37,7 +37,7 @@ Commented-out code (git remembers it), changelog or attribution comments, banner
 
 ## Docs
 
-### The four kinds
+### The five kinds
 
 Every doc is exactly one of these, and says which by its shape. A doc that wants to be two kinds is two docs.
 

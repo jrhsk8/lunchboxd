@@ -1,6 +1,6 @@
 # Voice — user-facing copy
 
-The tone every user-facing string keeps. The site is a Letterboxd riff where the subject matter is edible; the copy is in on the joke without winking at it.
+The tone every user-facing string keeps. Sourced from `src/`, authoritative as of 2026-07-26. The site is a Letterboxd riff where the subject matter is edible; the copy is in on the joke without winking at it.
 
 ## The register
 
@@ -17,7 +17,7 @@ Deadpan-playful, food-flavored, never corporate. The joke is treating lunch with
 
 ## Terms
 
-- **ranking** — one person scoring one food under a category (never "review", "rating" is the act's result).
-- **category** — the communal namespace unit; categories are invented, not created.
-- **handle** — the username. A guest doesn't have one, it has a serial number (`guest-4f2a1`); you "claim" or "pick" a handle, and an email is what buys it.
-- **loved it / heart** — the author's own score-independent mark.
+The vocabulary lives in [glossary.md](glossary.md) and binds every surface, not only copy. Two things about _how the words sound_ stay here, because they are tone rather than terminology:
+
+- **Letterboxd vocabulary where it maps.** Hearts are "loved it"; don't invent a parallel term for a concept Letterboxd already named.
+- **The mechanic, in the reader's words.** A category is _invented_, a ranking is _logged_, a handle is _picked_ — verbs a person would use about themselves.

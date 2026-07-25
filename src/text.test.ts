@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-// Imported from text.ts, not ui.tsx: ui.tsx reaches the Supabase client through
-// data.ts, which builds a realtime client at module load and needs a WebSocket.
+// Imported from text.ts, where these rules live on purpose: each is a decision
+// with edge cases, and a test is what keeps the decision from drifting.
 import { hashtagsIn, nextTopSlot, parseHash, PG, timeAgo, writeError } from './text';
 
 /*
