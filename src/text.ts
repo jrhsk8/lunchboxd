@@ -101,3 +101,37 @@ export function nextTopSlot(taken: readonly (number | null)[]): number | null {
   const held = new Set(taken);
   return TOP_SLOTS.find((slot) => !held.has(slot)) ?? null;
 }
+
+/** Every page the hash can name. */
+export type Route =
+  | { page: 'home' }
+  | { page: 'profile'; username: string }
+  | { page: 'category'; name: string }
+  | { page: 'hashtag'; hashtag: string }
+  | { page: 'notifications' }
+  | { page: 'terms' };
+
+/**
+ * One hash, one route. Pure, so every rule below is testable.
+ *
+ * Anything unrecognised is home, deliberately and silently: the fragment is
+ * also where Supabase delivers a magic link (`#access_token=…`), so a parse
+ * that threw or that showed a "no such page" would fire on a successful
+ * sign-in. Malformed percent-encoding in a hand-typed URL goes the same way.
+ */
+export function parseHash(hash: string): Route {
+  if (hash === '#/terms') return { page: 'terms' };
+  if (hash === '#/notifications') return { page: 'notifications' };
+  const m = /^#\/([uct])\/(.+)$/.exec(hash);
+  if (m) {
+    try {
+      const value = decodeURIComponent(m[2]);
+      if (m[1] === 'u') return { page: 'profile', username: value };
+      if (m[1] === 'c') return { page: 'category', name: value };
+      return { page: 'hashtag', hashtag: value };
+    } catch {
+      // Malformed percent-encoding: fall through to home.
+    }
+  }
+  return { page: 'home' };
+}

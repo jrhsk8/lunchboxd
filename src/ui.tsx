@@ -31,9 +31,10 @@ import {
   type Ranking,
 } from './data';
 import { StarInput, Stars } from './Stars';
-import { HASHTAG_RE, timeAgo } from './text';
+import { HASHTAG_RE, parseHash, timeAgo, type Route } from './text';
 
 export { hashtagsIn, timeAgo } from './text';
+export type { Route } from './text';
 
 export const panel = 'rounded-(--radius-card) border border-edge bg-panel shadow-(--shadow-hard)';
 export const kicker = 'text-[11px] font-semibold tracking-[0.16em] uppercase text-clay';
@@ -64,19 +65,20 @@ export function scoreTone(avg: number) {
   return 'text-ink';
 }
 
-export type Route =
-  | { page: 'home' }
-  | { page: 'profile'; username: string }
-  | { page: 'category'; name: string }
-  | { page: 'hashtag'; hashtag: string }
-  | { page: 'notifications' }
-  | { page: 'terms' };
-
 /**
+ * The current route, recomputed only when the hash changes.
+ *
+ * The parse itself lives in `src/text.ts` as `parseHash`, where it can be
+ * tested: its rules — three route shapes, percent-decoding, malformed input
+ * falling through to home, and never colliding with Supabase's magic-link
+ * fragment — are the kind that break silently and used to be unreachable from
+ * a test, being fused to a hook.
+ *
  * Hash routing (#/u/handle, #/c/category, #/t/hashtag) because the site is a
- * static build on Cloudflare Pages (lunchboxd.live) with no SPA-fallback rewrites.
- * Hashes also never collide with Supabase magic-link fragments (#access_token=…),
- * which the client consumes and clears before these routes matter.
+ * static build on Cloudflare Pages (lunchboxd.live) with no SPA-fallback
+ * rewrites. Hashes also never collide with Supabase magic-link fragments
+ * (#access_token=…), which the client consumes and clears before these routes
+ * matter.
  */
 export function useRoute(): Route {
   const [hash, setHash] = useState(() => window.location.hash);
@@ -85,20 +87,9 @@ export function useRoute(): Route {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
-  if (hash === '#/terms') return { page: 'terms' };
-  if (hash === '#/notifications') return { page: 'notifications' };
-  const m = /^#\/([uct])\/(.+)$/.exec(hash);
-  if (m) {
-    try {
-      const value = decodeURIComponent(m[2]);
-      if (m[1] === 'u') return { page: 'profile', username: value };
-      if (m[1] === 'c') return { page: 'category', name: value };
-      return { page: 'hashtag', hashtag: value };
-    } catch {
-      // Malformed percent-encoding in a hand-typed URL: fall through to home.
-    }
-  }
-  return { page: 'home' };
+  // Memoised because `Site` depends on the route object in an effect: a fresh
+  // object every render re-ran the document.title effect on every render.
+  return useMemo(() => parseHash(hash), [hash]);
 }
 
 /**

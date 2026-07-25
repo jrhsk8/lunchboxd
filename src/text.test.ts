@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 // Imported from text.ts, not ui.tsx: ui.tsx reaches the Supabase client through
 // data.ts, which builds a realtime client at module load and needs a WebSocket.
-import { hashtagsIn, nextTopSlot, PG, timeAgo, writeError } from './text';
+import { hashtagsIn, nextTopSlot, parseHash, PG, timeAgo, writeError } from './text';
 
 /*
  * The pure functions worth pinning: each has boundary rules subtle enough to
@@ -157,5 +157,48 @@ describe('timeAgo', () => {
 
   it('never counts backwards for a clock skewed into the future', () => {
     expect(timeAgo(new Date(now + 60_000).toISOString(), now)).toBe('just now');
+  });
+});
+
+describe('parseHash', () => {
+  it('reads the three value routes', () => {
+    expect(parseHash('#/u/hotdog_hank')).toEqual({ page: 'profile', username: 'hotdog_hank' });
+    expect(parseHash('#/c/Gas Station Sushi')).toEqual({
+      page: 'category',
+      name: 'Gas Station Sushi',
+    });
+    expect(parseHash('#/t/brunch')).toEqual({ page: 'hashtag', hashtag: 'brunch' });
+  });
+
+  it('reads the two fixed routes, and home', () => {
+    expect(parseHash('#/terms')).toEqual({ page: 'terms' });
+    expect(parseHash('#/notifications')).toEqual({ page: 'notifications' });
+    expect(parseHash('#/')).toEqual({ page: 'home' });
+    expect(parseHash('')).toEqual({ page: 'home' });
+  });
+
+  it('percent-decodes the value', () => {
+    expect(parseHash('#/c/Soup%2DAdjacent')).toEqual({ page: 'category', name: 'Soup-Adjacent' });
+    expect(parseHash('#/u/j%20h')).toEqual({ page: 'profile', username: 'j h' });
+  });
+
+  it('falls through to home on malformed encoding rather than throwing', () => {
+    // A hand-typed URL, and the reason the parse catches at all.
+    expect(parseHash('#/c/%E0%A4%A')).toEqual({ page: 'home' });
+  });
+
+  it("never claims a route from Supabase's magic-link fragment", () => {
+    // The whole reason routing is hash-based here is that it must coexist with
+    // this: a sign-in landing must render home, not a category called
+    // "access_token=...".
+    expect(parseHash('#access_token=abc123&refresh_token=def&type=magiclink')).toEqual({
+      page: 'home',
+    });
+    expect(parseHash('#error=access_denied&error_description=expired')).toEqual({ page: 'home' });
+  });
+
+  it('keeps an unknown single-letter route out', () => {
+    expect(parseHash('#/x/whatever')).toEqual({ page: 'home' });
+    expect(parseHash('#/u/')).toEqual({ page: 'home' });
   });
 });
